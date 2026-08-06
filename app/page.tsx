@@ -1,79 +1,24 @@
-'use client';
+// app/page.tsx
+'use 'client';
 
 import React, { useState, useRef } from 'react';
 import { 
   Users, 
   Search, 
   Upload,
-  Clock,
-  FileText,
-  Trash2,
   BookOpen,
-  Briefcase,
-  MapPin,
   Building2,
-  AlertCircle,
   PhoneCall,
-  UserCheck,
-  CheckCircle2,
-  Filter,
-  UserPlus
+  UserCheck
 } from 'lucide-react';
-
-// 1. Estructura de Clientes vinculados a Ejecutivos de Cuenta
-const OPERATIVAS_BASE = [
-  {
-    ejecutivo: 'Mesa de Operaciones — Outsourcing / Reclutamiento',
-    cuentas: [
-      { id: 'procil', cliente: 'PROCIL', cargoAsociado: '04', contactos: [] },
-      { id: 'montecable', cliente: 'MONTECABLE', cargoAsociado: '06', contactos: [] },
-      { id: 'rafap', cliente: 'R. AFAP (Maldonado)', cargoAsociado: '06', contactos: [] },
-      { id: 'promotora', cliente: 'Promotora — Mvdeo.', cargoAsociado: '06', contactos: [] },
-      { id: 'velcro', cliente: 'VELCRO', cargoAsociado: '04', contactos: [] },
-      { id: 'ucm_rec', cliente: 'UCM — Recepcionistas', cargoAsociado: '10', contactos: [] },
-      { id: 'darkstore', cliente: 'DARKSTORE', cargoAsociado: '01', contactos: [] },
-      { id: 'caderlux', cliente: 'CADERLUX', cargoAsociado: '03', contactos: [] },
-      { id: 'tecnobalizas', cliente: 'TECNOBALIZAS', cargoAsociado: '01', contactos: [] },
-      { id: 'pangiorno', cliente: 'PANGIORNO', cargoAsociado: '06', contactos: [] },
-      { id: 'santarosa', cliente: 'SANTA ROSA', cargoAsociado: '03', contactos: [] },
-      { id: 'frimaral', cliente: 'FRIMARAL', cargoAsociado: '07', contactos: [] },
-      { id: 'tienda_inglesa', cliente: 'TIENDA INGLESA (Saravia / Solymar)', cargoAsociado: '03', contactos: [] },
-      { id: 'riogas', cliente: 'RIOGAS / ACODIKE', cargoAsociado: '02', contactos: [] },
-      { id: 'tiendas_varias', cliente: 'TIENDA Montevideo / CdLC / Atlántida', cargoAsociado: '06', contactos: [] },
-      { id: 'ehub', cliente: 'EHUB — Roti/Pana', cargoAsociado: '06', contactos: [] },
-      { id: 'bromyros', cliente: 'BROMYROS', cargoAsociado: '03', contactos: [] },
-      { id: 'pepsico', cliente: 'PEPSICO', cargoAsociado: '01', contactos: [] },
-      { id: 'sodimac', cliente: 'SODIMAC (S - 40/44 / S - 30)', cargoAsociado: '03', contactos: [] },
-      { id: 'logisfashion', cliente: 'LOGISFASHION', cargoAsociado: '08', contactos: [] },
-      { id: 'neorol', cliente: 'NEOROL', cargoAsociado: '07', contactos: [] },
-      { id: 'corfrisa', cliente: 'CORFRISA', cargoAsociado: '03', contactos: [] },
-      { id: 'disershop', cliente: 'DISERSHOP', cargoAsociado: '03', contactos: [] },
-      { id: 'kevenoll', cliente: 'KEVENOLL', cargoAsociado: '03', contactos: [] },
-      { id: 'divino', cliente: 'DIVINO Tacuarembó', cargoAsociado: '03', contactos: [] }
-    ]
-  }
-];
-
-// 2. Fichas del Manual de Cargos para realizar el Match
-const MANUAL_CARGOS = [
-  { id: '01', title: 'Peón / Operario General', funcion: 'Carga y descarga, esfuerzo físico.' },
-  { id: '02', title: 'Operario de Ingreso — Riogas y Acodike', funcion: 'Planta de gas, esfuerzo físico alto.' },
-  { id: '03', title: 'Auxiliar / Operario de Depósito', funcion: 'Picking, colector de datos, depósito.' },
-  { id: '04', title: 'Auxiliar / Operario de Limpieza', funcion: 'Limpieza de instalaciones y oficinas.' },
-  { id: '05', title: 'Chofer / Reparto', funcion: 'Reparto, libreta de conducir.' },
-  { id: '06', title: 'Personal de Atención al Cliente / Venta', funcion: 'Atención al público, ventas, caja.' },
-  { id: '07', title: 'Operario de Producción / Técnico', funcion: 'Oficio técnico, soldadura, electricidad.' },
-  { id: '08', title: 'Auditor / Control de Inventario', funcion: 'Inventarios, colector y PC.' },
-  { id: '09', title: 'Personal de Enfermería', funcion: 'Enfermería, salud, libreta.' },
-  { id: '10', title: 'Recepcionista', funcion: 'Recepción y atención administrativa.' },
-  { id: '11', title: 'Peón de Reparto — Logisfashion', funcion: 'Acompañante de reparto a demanda.' }
-];
+import { Candidate, GrupoOperativa } from '@/types';
+import { OPERATIVAS_BASE, MANUAL_CARGOS_BASE } from '@/data/mockData';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'operativas' | 'manual' | 'candidates'>('operativas');
   const [searchTerm, setSearchTerm] = useState('');
-  const [operativas, setOperativas] = useState(OPERATIVAS_BASE);
-  const [candidates, setCandidates] = useState<any[]>([]);
+  const [operativas, setOperativas] = useState<GrupoOperativa[]>(OPERATIVAS_BASE);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,19 +26,16 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  // Función de lectura y match automático de CVs con las operativas
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      const newCandidates: any[] = [];
+      const newCandidates: Candidate[] = [];
       const updatedOperativas = [...operativas];
 
       Array.from(files).forEach((file, index) => {
-        // Extraer nombre y simular lectura de perfil/teléfono desde el archivo
         const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
         const fakePhone = `09${Math.floor(10000000 + Math.random() * 9000000)}`;
         
-        // Asignación automática de cargo por palabras clave
         let assignedCargo = '01'; 
         const lowerName = file.name.toLowerCase();
         
@@ -102,24 +44,26 @@ export default function Home() {
         else if (lowerName.includes('tecnico') || lowerName.includes('soldador')) assignedCargo = '07';
         else if (lowerName.includes('venta') || lowerName.includes('caja')) assignedCargo = '06';
 
-        // Agregar candidato
-        newCandidates.push({
-          id: Date.now() + index,
-          name: cleanName,
-          phone: fakePhone,
-          position: MANUAL_CARGOS.find(c => c.id === assignedCargo)?.title || 'Operario',
-          status: 'EVALUACION',
-          fileName: file.name,
-          date: new Date().toLocaleDateString('es-ES')
-        });
+        const matchedClienteNames: string[] = [];
 
-        // Completar línea en la Operativa del Cliente que coincida con el puesto
         updatedOperativas.forEach(group => {
           group.cuentas.forEach(cuenta => {
             if (cuenta.cargoAsociado === assignedCargo) {
               cuenta.contactos.push(`${fakePhone} — ${cleanName}`);
+              matchedClienteNames.push(cuenta.cliente);
             }
           });
+        });
+
+        newCandidates.push({
+          id: (Date.now() + index).toString(),
+          name: cleanName,
+          phone: fakePhone,
+          position: MANUAL_CARGOS_BASE.find(c => c.id === assignedCargo)?.title || 'Operario',
+          status: 'NUEVO',
+          fileName: file.name,
+          date: new Date().toLocaleDateString('es-ES'),
+          matchedOperativas: matchedClienteNames
         });
       });
 
@@ -140,7 +84,6 @@ export default function Home() {
         className="hidden" 
       />
 
-      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -194,8 +137,6 @@ export default function Home() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* VISTA OPERATIVAS */}
         {activeTab === 'operativas' && (
           <div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
@@ -211,7 +152,7 @@ export default function Home() {
               </div>
               <div className="text-xs text-slate-500 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-blue-600" />
-                <span>Líneas completadas dinámicamente mediante coincidencia con CVs</span>
+                <span>Abastecimiento dinámico basado en lectura de CVs</span>
               </div>
             </div>
 
@@ -225,43 +166,47 @@ export default function Home() {
                 <div className="bg-white border border-t-0 border-slate-200 rounded-b-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {group.cuentas
                     .filter(c => c.cliente.toLowerCase().includes(searchTerm.toLowerCase()))
-                    .map((cuenta, cIdx) => (
-                      <div key={cIdx} className="border border-slate-200 rounded-lg p-3.5 hover:border-blue-300 transition-colors bg-slate-50/50">
-                        <div className="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2 mb-2 flex justify-between items-center">
-                          <span className="truncate">{cuenta.cliente}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                            cuenta.contactos.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                          }`}>
-                            {cuenta.contactos.length} Matched
-                          </span>
+                    .map((cuenta) => {
+                      const isCovered = cuenta.contactos.length >= cuenta.vacantes;
+                      return (
+                        <div key={cuenta.id} className="border border-slate-200 rounded-lg p-3.5 hover:border-blue-300 transition-colors bg-slate-50/50">
+                          <div className="border-b border-slate-200 pb-2 mb-2">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-sm text-slate-900 truncate">{cuenta.cliente}</span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                isCovered ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {cuenta.contactos.length} / {cuenta.vacantes} Vacantes
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                            {cuenta.contactos.length > 0 ? (
+                              cuenta.contactos.map((contacto, numIdx) => (
+                                <div key={numIdx} className="text-xs text-slate-700 font-mono flex items-center space-x-1.5">
+                                  <span className="text-emerald-500 font-bold">•</span>
+                                  <span>{contacto}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-slate-400 italic py-2">
+                                Sin postulantes compatibles cargados...
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        
-                        <div className="space-y-1 max-h-48 overflow-y-auto">
-                          {cuenta.contactos.length > 0 ? (
-                            cuenta.contactos.map((contacto, numIdx) => (
-                              <div key={numIdx} className="text-xs text-slate-700 font-mono flex items-center space-x-1.5">
-                                <span className="text-emerald-500 font-bold">•</span>
-                                <span>{contacto}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-xs text-slate-400 italic py-2">
-                              A la espera de carga de CVs compatibles...
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                  ))}
+                      );
+                    })}
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* VISTA MANUAL */}
         {activeTab === 'manual' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {MANUAL_CARGOS.map((cargo) => (
+            {MANUAL_CARGOS_BASE.map((cargo) => (
               <div key={cargo.id} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
                 <span className="text-xs font-bold px-2.5 py-1 bg-slate-900 text-white rounded-md">
                   CARGO {cargo.id}
@@ -273,16 +218,39 @@ export default function Home() {
           </div>
         )}
 
-        {/* VISTA CANDIDATOS */}
         {activeTab === 'candidates' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {candidates.map((candidate) => (
-              <div key={candidate.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h4 className="font-bold text-slate-900">{candidate.name}</h4>
-                <p className="text-xs text-blue-600 font-medium">{candidate.position}</p>
-                <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
+            {candidates.length > 0 ? (
+              candidates.map((candidate) => (
+                <div key={candidate.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-bold text-slate-900">{candidate.name}</h4>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                      {candidate.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 font-medium mt-1">{candidate.position}</p>
+                  <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
+                  {candidate.matchedOperativas.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-slate-100">
+                      <span className="text-[10px] text-slate-400 font-medium block mb-1">Operativas asignadas:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {candidate.matchedOperativas.map((op, idx) => (
+                          <span key={idx} className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                            {op}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="col-span-3 text-center py-12 text-slate-400">
+                <UserCheck className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No hay candidatos cargados en el sistema.</p>
               </div>
-            ))}
+            )}
           </div>
         )}
       </main>
