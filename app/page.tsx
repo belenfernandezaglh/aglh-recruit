@@ -22,6 +22,15 @@ export default function Home() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Cálculos de Métricas Globales (KPIs)
+  const totalVacantes = operativas.reduce((acc, group) => 
+    acc + group.cuentas.reduce((cAcc, cuenta) => cAcc + cuenta.vacantes, 0), 0);
+  
+  const totalCubiertas = operativas.reduce((acc, group) => 
+    acc + group.cuentas.reduce((cAcc, cuenta) => cAcc + Math.min(cuenta.contactos.length, cuenta.vacantes), 0), 0);
+
+  const porcentajeAbastecimiento = totalVacantes > 0 ? Math.round((totalCubiertas / totalVacantes) * 100) : 0;
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -54,16 +63,18 @@ export default function Home() {
           });
         });
 
-        newCandidates.push({
+        const initialCandidate: Candidate = {
           id: (Date.now() + index).toString(),
           name: cleanName,
           phone: fakePhone,
           position: MANUAL_CARGOS_BASE.find(c => c.id === assignedCargo)?.title || 'Operario',
           status: 'NUEVO',
           fileName: file.name,
-          date: new Date().toLocaleDateString('es-ES'),
+          date: new Date().toLocaleDateString('es-ES') + ' ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
           matchedOperativas: matchedClienteNames
-        });
+        };
+
+        newCandidates.push(initialCandidate);
       });
 
       setCandidates((prev) => [...newCandidates, ...prev]);
@@ -148,17 +159,17 @@ export default function Home() {
         className="hidden" 
       />
 
-      {/* Superposición visual para Drag & Drop */}
+      {/* Superposición visual Drag & Drop */}
       {isDragging && (
         <div className="fixed inset-0 bg-blue-600/10 backdrop-blur-sm border-4 border-dashed border-blue-500 z-50 flex items-center justify-center pointer-events-none">
           <div className="bg-white p-6 rounded-2xl shadow-xl text-center border border-blue-100">
-            <p className="text-lg font-bold text-slate-900">Suelta los archivos aquí</p>
+            <p className="text-lg font-bold text-slate-900">Suelta los CVs aquí para procesarlos</p>
             <p className="text-xs text-slate-500 mt-1">Soporta documentos PDF, DOC y DOCX</p>
           </div>
         </div>
       )}
 
-      {/* Header */}
+      {/* Header Superior */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -207,6 +218,28 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Panel de Métricas Generales (KPIs) */}
+      <section className="bg-slate-900 text-white border-b border-slate-800 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="border-r border-slate-800 pr-4">
+            <p className="text-[11px] text-slate-400 font-medium">TOTAL VACANTES</p>
+            <p className="text-xl font-bold text-white mt-0.5">{totalVacantes}</p>
+          </div>
+          <div className="border-r border-slate-800 pr-4">
+            <p className="text-[11px] text-slate-400 font-medium">CANDIDATOS ASIGNADOS</p>
+            <p className="text-xl font-bold text-emerald-400 mt-0.5">{totalCubiertas}</p>
+          </div>
+          <div className="border-r border-slate-800 pr-4">
+            <p className="text-[11px] text-slate-400 font-medium">% ABASTECIMIENTO</p>
+            <p className="text-xl font-bold text-blue-400 mt-0.5">{porcentajeAbastecimiento}%</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-slate-400 font-medium">CANDIDATOS ACTIVOS</p>
+            <p className="text-xl font-bold text-purple-400 mt-0.5">{candidates.length}</p>
+          </div>
+        </div>
+      </section>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* VISTA OPERATIVAS */}
         {activeTab === 'operativas' && (
@@ -222,7 +255,7 @@ export default function Home() {
                 />
               </div>
               <div className="text-xs text-slate-500">
-                Abastecimiento dinámico basado en lectura de CVs
+                Abastecimiento dinámico automatizado
               </div>
             </div>
 
@@ -416,7 +449,7 @@ export default function Home() {
               </div>
 
               <div>
-                <span className="text-slate-400 font-medium block">Fecha de Carga:</span>
+                <span className="text-slate-400 font-medium block">Fecha y Hora de Carga:</span>
                 <p className="text-slate-700 mt-0.5">{selectedCandidate.date}</p>
               </div>
 
