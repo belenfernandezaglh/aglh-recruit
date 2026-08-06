@@ -17,7 +17,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('busqueda');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   
-  // Filtros de Búsqueda de Talentos por Zona, Experiencia y Empresa Cliente
+  // Filtros de Búsqueda
   const [searchZone, setSearchZone] = useState('');
   const [searchExp, setSearchExp] = useState('');
   const [selectedClientFilter, setSelectedClientFilter] = useState('');
@@ -29,59 +29,75 @@ export default function Home() {
   const [operativas, setOperativas] = useState<GrupoOperativa[]>(OPERATIVAS_BASE);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   
-  const fileInputRef = useRef<InputElement>(null as any);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cargar candidatos desde Supabase al iniciar la página
+  // Cargar candidatos desde Supabase al iniciar
   useEffect(() => {
     fetchCandidates();
   }, []);
 
   const fetchCandidates = async () => {
-    const { data, error } = await supabase
-      .from('candidates')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('candidates')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error al cargar candidatos:', error);
-    } else if (data) {
-      const formatted: Candidate[] = data.map((item) => ({
-        id: item.id,
-        name: item.name,
-        phone: item.phone || '',
-        position: item.position || 'Postulante General',
-        status: (item.status as CandidateStatus) || 'NUEVO',
-        fileName: item.file_name || 'Documento.pdf',
-        date: item.created_at ? new Date(item.created_at).toLocaleString('es-ES') : '',
-        matchedOperativas: item.matched_operativas || []
-      }));
-      setCandidates(formatted);
+      if (error) {
+        console.error('Error al cargar candidatos:', error);
+        return;
+      }
+
+      if (data) {
+        const formatted: Candidate[] = data.map((item) => ({
+          id: String(item.id),
+          name: item.name || 'Sin Nombre',
+          phone: item.phone || '',
+          position: item.position || 'Postulante General',
+          status: (item.status as CandidateStatus) || 'NUEVO',
+          fileName: item.file_name || 'Documento.pdf',
+          date: item.created_at ? new Date(item.created_at).toLocaleString('es-ES') : '',
+          matchedOperativas: item.matched_operativas || []
+        }));
+        setCandidates(formatted);
+      }
+    } catch (err) {
+      console.error('Error general al conectar con Supabase:', err);
     }
   };
 
-  // Función para ELIMINAR candidato de Supabase
+  // Función de eliminación
   const handleDeleteCandidate = async (e: React.MouseEvent, candidateId: string) => {
-    e.stopPropagation(); // Evita abrir el modal al hacer clic en eliminar
+    e.stopPropagation(); // Evita abrir o reabrir la ficha modal
 
-    if (!confirm('¿Estás seguro de que deseas eliminar este candidato del sistema?')) return;
+    if (!candidateId) {
+      alert('Error: El candidato no tiene un ID válido para eliminar.');
+      return;
+    }
 
+    const confirmDelete = window.confirm('¿Confirmas que deseas eliminar permanentemente este candidato?');
+    if (!confirmDelete) return;
+
+    // 1. Eliminar visualmente de inmediato en la UI
+    setCandidates((prev) => prev.filter((c) => String(c.id) !== String(candidateId)));
+    
+    if (selectedCandidate && String(selectedCandidate.id) === String(candidateId)) {
+      setSelectedCandidate(null);
+    }
+
+    // 2. Ejecutar la baja en Supabase
     const { error } = await supabase
       .from('candidates')
       .delete()
       .eq('id', candidateId);
 
     if (error) {
-      console.error('Error al eliminar:', error);
-      alert('Ocurrió un error al intentar eliminar el registro.');
-    } else {
-      setCandidates((prev) => prev.filter((c) => c.id !== candidateId));
-      if (selectedCandidate?.id === candidateId) {
-        setSelectedCandidate(null);
-      }
+      console.error('Error al eliminar en Supabase:', error);
+      alert('No se pudo borrar de la base de datos remota. Recargá la página.');
     }
   };
 
-  // Extraer lista única de empresas clientes registradas
+  // Extraer lista única de empresas clientes
   const allClients = Array.from(
     new Set(operativas.flatMap(group => group.cuentas.map(c => c.cliente)))
   );
@@ -90,7 +106,7 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  // Procesamiento de CVs para extracción, guardado en Supabase e indexación
+  // Procesamiento e indexación de nuevos CVs
   const processFiles = async (files: FileList | File[]) => {
     if (files && files.length > 0) {
       const zonasMock = ['Montevideo (Centro)', 'Montevideo (Paso Carrasco)', 'Canelones (Ciudad de la Costa)', 'San José', 'Maldonado'];
@@ -123,7 +139,6 @@ export default function Home() {
         });
       });
 
-      // Guardar permanentemente en Supabase
       const { data, error } = await supabase
         .from('candidates')
         .insert(newCandidatesToInsert)
@@ -131,10 +146,10 @@ export default function Home() {
 
       if (error) {
         console.error('Error insertando en Supabase:', error);
-        alert('Ocurrió un error al guardar los datos en Supabase.');
+        alert('Ocurrió un error al guardar en Supabase.');
       } else if (data) {
         const createdCandidates: Candidate[] = data.map((item) => ({
-          id: item.id,
+          id: String(item.id),
           name: item.name,
           phone: item.phone,
           position: item.position,
@@ -190,7 +205,7 @@ export default function Home() {
     }
   };
 
-  // Filtrado de candidatos enfocado en Empresa Cliente, Zona y Experiencia
+  // Filtrado de candidatos
   const candidatesMatch = candidates.filter(candidate => {
     const matchClient = selectedClientFilter === '' || candidate.matchedOperativas?.includes(selectedClientFilter);
     const matchZone = searchZone === '' || candidate.name.toLowerCase().includes(searchZone.toLowerCase()) || candidate.fileName.toLowerCase().includes(searchZone.toLowerCase());
@@ -208,7 +223,7 @@ export default function Home() {
     >
       <input 
         type="file" 
-        ref={fileInputRef as any} 
+        ref={fileInputRef} 
         onChange={handleFileChange} 
         accept=".pdf,.doc,.docx" 
         multiple 
@@ -341,7 +356,7 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Panel de Filtros por Empresa, Zona y Experiencia */}
+              {/* Panel de Filtros */}
               <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Empresa Cliente Target</label>
@@ -392,7 +407,7 @@ export default function Home() {
                       <div 
                         key={candidate.id}
                         onClick={() => setSelectedCandidate(candidate)}
-                        className="p-4 border border-slate-200 rounded-lg hover:border-[#8cb800] cursor-pointer transition-colors bg-slate-50/50 flex flex-col justify-between"
+                        className="p-4 border border-slate-200 rounded-lg hover:border-[#8cb800] cursor-pointer transition-colors bg-slate-50/50 flex flex-col justify-between relative group"
                       >
                         <div>
                           <div className="flex justify-between items-start">
@@ -417,13 +432,16 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* Botón de eliminar directo en la tarjeta */}
-                        <div className="mt-4 pt-2 border-t border-slate-200 flex justify-end">
+                        {/* Botón Rojo visible en cada tarjeta */}
+                        <div className="mt-4 pt-2 border-t border-slate-200 flex justify-between items-center">
+                          <span className="text-[10px] text-slate-400 font-mono">ID: {candidate.id.substring(0, 6)}...</span>
                           <button
+                            type="button"
                             onClick={(e) => handleDeleteCandidate(e, candidate.id)}
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50 text-[11px] font-semibold px-2 py-1 rounded transition-colors"
+                            className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-200 text-[11px] font-bold px-2.5 py-1 rounded transition-colors flex items-center space-x-1"
                           >
-                            🗑️ Eliminar
+                            <span>🗑️</span>
+                            <span>Eliminar</span>
                           </button>
                         </div>
                       </div>
@@ -460,10 +478,12 @@ export default function Home() {
 
                     <div className="mt-3 pt-2 border-t border-slate-100 flex justify-end">
                       <button
+                        type="button"
                         onClick={(e) => handleDeleteCandidate(e, candidate.id)}
-                        className="text-red-600 hover:text-red-800 hover:bg-red-50 text-[11px] font-semibold px-2 py-1 rounded transition-colors"
+                        className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-200 text-[11px] font-bold px-2.5 py-1 rounded transition-colors flex items-center space-x-1"
                       >
-                        🗑️ Eliminar
+                        <span>🗑️</span>
+                        <span>Eliminar</span>
                       </button>
                     </div>
                   </div>
@@ -521,7 +541,7 @@ export default function Home() {
         </main>
       </div>
 
-      {/* Modal Ficha de Candidato */}
+      {/* Modal Ficha del Candidato */}
       {selectedCandidate && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full border border-slate-200 shadow-2xl p-6">
@@ -534,6 +554,7 @@ export default function Home() {
             </div>
 
             <div className="space-y-2 text-xs">
+              <p><strong>ID Ficha:</strong> <span className="font-mono text-slate-500">{selectedCandidate.id}</span></p>
               <p><strong>Archivo CV:</strong> {selectedCandidate.fileName}</p>
               <p><strong>Fecha de Ingreso:</strong> {selectedCandidate.date}</p>
               
@@ -551,15 +572,21 @@ export default function Home() {
               )}
             </div>
 
-            <div className="mt-5 pt-3 border-t border-slate-100 flex justify-between items-center">
+            <div className="mt-6 pt-3 border-t border-slate-100 flex justify-between items-center">
               <button
+                type="button"
                 onClick={(e) => handleDeleteCandidate(e, selectedCandidate.id)}
-                className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded text-xs font-semibold"
+                className="bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded text-xs font-bold transition-colors flex items-center space-x-1"
               >
-                🗑️ Eliminar Candidato
+                <span>🗑️</span>
+                <span>Eliminar Candidato</span>
               </button>
 
-              <button onClick={() => setSelectedCandidate(null)} className="bg-[#1f2937] text-white px-4 py-1.5 rounded text-xs font-semibold">
+              <button 
+                type="button"
+                onClick={() => setSelectedCandidate(null)} 
+                className="bg-[#1f2937] hover:bg-black text-white px-4 py-1.5 rounded text-xs font-semibold"
+              >
                 Cerrar Ficha
               </button>
             </div>
