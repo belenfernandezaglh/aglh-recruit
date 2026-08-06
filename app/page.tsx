@@ -5,7 +5,6 @@ import {
   Users, 
   Search, 
   Filter, 
-  Plus, 
   UserCheck, 
   Upload,
   CheckCircle2,
@@ -22,30 +21,33 @@ export default function Home() {
   // Referencia para activar el selector de archivos oculto
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Función para abrir la carpeta de archivos al hacer clic en "Cargar CV"
+  // Función para abrir la carpeta de archivos al hacer clic en "Cargar CVs"
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Función que procesa el archivo seleccionado y crea un candidato
+  // Función que procesa MÚLTIPLES archivos seleccionados a la vez
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Extrae el nombre del archivo eliminando la extensión para usarlo como nombre provisorio
-      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-      
-      const newCandidate = {
-        id: Date.now(),
-        name: cleanName,
-        position: 'Candidato General',
-        status: 'NUEVO',
-        fileName: file.name,
-        date: new Date().toLocaleDateString('es-ES')
-      };
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      // Convertimos la lista de archivos a un arreglo para procesarlos todos
+      const newCandidates = Array.from(files).map((file, index) => {
+        const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+        
+        return {
+          id: Date.now() + index, // ID único para cada archivo
+          name: cleanName,
+          position: 'Candidato General',
+          status: 'NUEVO',
+          fileName: file.name,
+          date: new Date().toLocaleDateString('es-ES')
+        };
+      });
 
-      setCandidates((prev) => [newCandidate, ...prev]);
+      // Agregamos todos los nuevos candidatos a la lista existente
+      setCandidates((prev) => [...newCandidates, ...prev]);
       
-      // Limpia el input para permitir volver a subir el mismo archivo si se desea
+      // Limpiamos el input para permitir cargar más lotes de archivos luego
       event.target.value = '';
     }
   };
@@ -65,12 +67,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      {/* Input Oculto para Selección de Archivos */}
+      {/* Input Oculto con la propiedad "multiple" activada */}
       <input 
         type="file" 
         ref={fileInputRef} 
         onChange={handleFileChange} 
         accept=".pdf,.doc,.docx" 
+        multiple 
         className="hidden" 
       />
 
@@ -93,7 +96,7 @@ export default function Home() {
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors shadow-sm"
             >
               <Upload className="w-4 h-4" />
-              <span>Cargar CV</span>
+              <span>Cargar CVs</span>
             </button>
           </div>
         </div>
@@ -220,7 +223,7 @@ export default function Home() {
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-1">No hay candidatos registrados</h3>
             <p className="text-slate-500 text-sm max-w-md mx-auto mb-6">
-              Sube un archivo PDF o Word para probar cómo se agregan los candidatos a la lista.
+              Selecciona múltiples archivos PDF o Word a la vez para cargarlos juntos.
             </p>
             <div className="flex justify-center">
               <button 
@@ -228,7 +231,7 @@ export default function Home() {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium flex items-center space-x-2 shadow-sm transition-colors"
               >
                 <Upload className="w-4 h-4" />
-                <span>Seleccionar y Cargar CV</span>
+                <span>Seleccionar y Cargar Múltiples CVs</span>
               </button>
             </div>
           </div>
