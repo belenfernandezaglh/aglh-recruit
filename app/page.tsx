@@ -9,14 +9,21 @@ import {
   BookOpen,
   Building2,
   PhoneCall,
-  UserCheck
+  UserCheck,
+  Filter,
+  CheckCircle2
 } from 'lucide-react';
-import { Candidate, GrupoOperativa } from '../types';
+import { Candidate, CandidateStatus, GrupoOperativa } from '../types';
 import { OPERATIVAS_BASE, MANUAL_CARGOS_BASE } from '../data/mockData';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'operativas' | 'manual' | 'candidates'>('operativas');
+  
+  // Estados para búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState('');
+  const [manualSearchTerm, setManualSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('TODOS');
+  
   const [operativas, setOperativas] = useState<GrupoOperativa[]>(OPERATIVAS_BASE);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   
@@ -73,6 +80,19 @@ export default function Home() {
     }
   };
 
+  // Filtrado de cargos por palabra clave
+  const filteredCargos = MANUAL_CARGOS_BASE.filter(cargo => 
+    cargo.title.toLowerCase().includes(manualSearchTerm.toLowerCase()) ||
+    cargo.funcion.toLowerCase().includes(manualSearchTerm.toLowerCase()) ||
+    cargo.id.includes(manualSearchTerm)
+  );
+
+  // Filtrado de candidatos por estado
+  const filteredCandidates = candidates.filter(candidate => {
+    if (statusFilter === 'TODOS') return true;
+    return candidate.status === statusFilter;
+  });
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <input 
@@ -84,6 +104,7 @@ export default function Home() {
         className="hidden" 
       />
 
+      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -137,6 +158,7 @@ export default function Home() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* VISTA OPERATIVAS */}
         {activeTab === 'operativas' && (
           <div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
@@ -204,53 +226,98 @@ export default function Home() {
           </div>
         )}
 
+        {/* VISTA MANUAL DE CARGOS */}
         {activeTab === 'manual' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {MANUAL_CARGOS_BASE.map((cargo) => (
-              <div key={cargo.id} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-                <span className="text-xs font-bold px-2.5 py-1 bg-slate-900 text-white rounded-md">
-                  CARGO {cargo.id}
-                </span>
-                <h3 className="text-lg font-bold text-slate-900 mt-2">{cargo.title}</h3>
-                <p className="text-xs text-slate-600 mt-2">{cargo.funcion}</p>
+          <div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
+              <div className="relative w-96">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por cargo, tareas o palabra clave..."
+                  value={manualSearchTerm}
+                  onChange={(e) => setManualSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
-            ))}
+              <span className="text-xs text-slate-500">
+                Mostrando {filteredCargos.length} de {MANUAL_CARGOS_BASE.length} cargos
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredCargos.map((cargo) => (
+                <div key={cargo.id} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:border-blue-300 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-bold px-2.5 py-1 bg-slate-900 text-white rounded-md">
+                      CARGO {cargo.id}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">{cargo.title}</h3>
+                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">{cargo.funcion}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
+        {/* VISTA CANDIDATOS */}
         {activeTab === 'candidates' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {candidates.length > 0 ? (
-              candidates.map((candidate) => (
-                <div key={candidate.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-slate-900">{candidate.name}</h4>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
-                      {candidate.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-600 font-medium mt-1">{candidate.position}</p>
-                  <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
-                  {candidate.matchedOperativas.length > 0 && (
-                    <div className="mt-3 pt-2 border-t border-slate-100">
-                      <span className="text-[10px] text-slate-400 font-medium block mb-1">Operativas asignadas:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {candidate.matchedOperativas.map((op, idx) => (
-                          <span key={idx} className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
-                            {op}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="col-span-3 text-center py-12 text-slate-400">
-                <UserCheck className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No hay candidatos cargados en el sistema.</p>
+          <div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-slate-400" />
+                <span className="text-xs font-medium text-slate-600">Filtrar por estado:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="TODOS">Todos los estados</option>
+                  <option value="NUEVO">NUEVO</option>
+                  <option value="EVALUACION">EVALUACIÓN</option>
+                  <option value="ENTREVISTA">ENTREVISTA</option>
+                  <option value="SELECCIONADO">SELECCIONADO</option>
+                </select>
               </div>
-            )}
+              <span className="text-xs text-slate-500">
+                Total: {filteredCandidates.length} candidatos
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {filteredCandidates.length > 0 ? (
+                filteredCandidates.map((candidate) => (
+                  <div key={candidate.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-slate-900">{candidate.name}</h4>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                        {candidate.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-600 font-medium mt-1">{candidate.position}</p>
+                    <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
+                    {candidate.matchedOperativas.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-slate-100">
+                        <span className="text-[10px] text-slate-400 font-medium block mb-1">Operativas asignadas:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {candidate.matchedOperativas.map((op, idx) => (
+                            <span key={idx} className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                              {op}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-3 text-center py-12 text-slate-400 bg-white rounded-xl border border-slate-200">
+                  <UserCheck className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No se encontraron candidatos con el filtro seleccionado.</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
