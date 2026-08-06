@@ -10,9 +10,8 @@ import {
   Building2,
   PhoneCall,
   UserCheck,
-  Filter,
-  CheckCircle2
-} from 'lucide-react';
+  Filter
+} from '../types'; // Mantenemos importaciones directas
 import { Candidate, CandidateStatus, GrupoOperativa } from '../types';
 import { OPERATIVAS_BASE, MANUAL_CARGOS_BASE } from '../data/mockData';
 
@@ -80,6 +79,29 @@ export default function Home() {
     }
   };
 
+  // Cambiar estado de un candidato individual
+  const handleStatusChange = (candidateId: string, newStatus: CandidateStatus) => {
+    setCandidates((prev) =>
+      prev.map((c) => (c.id === candidateId ? { ...c, status: newStatus } : c))
+    );
+  };
+
+  // Helper de estilos por estado
+  const getStatusBadgeStyle = (status: CandidateStatus) => {
+    switch (status) {
+      case 'NUEVO':
+        return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'EVALUACION':
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'ENTREVISTA':
+        return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'SELECCIONADO':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
   // Filtrado de cargos por palabra clave
   const filteredCargos = MANUAL_CARGOS_BASE.filter(cargo => 
     cargo.title.toLowerCase().includes(manualSearchTerm.toLowerCase()) ||
@@ -124,7 +146,6 @@ export default function Home() {
                 activeTab === 'operativas' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'
               }`}
             >
-              <PhoneCall className="w-3.5 h-3.5" />
               <span>Operativas</span>
             </button>
             <button
@@ -133,7 +154,6 @@ export default function Home() {
                 activeTab === 'manual' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'
               }`}
             >
-              <BookOpen className="w-3.5 h-3.5" />
               <span>Manual de Cargos</span>
             </button>
             <button
@@ -142,7 +162,6 @@ export default function Home() {
                 activeTab === 'candidates' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'
               }`}
             >
-              <Users className="w-3.5 h-3.5" />
               <span>Candidatos ({candidates.length})</span>
             </button>
           </div>
@@ -151,7 +170,6 @@ export default function Home() {
             onClick={handleUploadClick}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors shadow-sm"
           >
-            <Upload className="w-4 h-4" />
             <span>Cargar CVs</span>
           </button>
         </div>
@@ -163,17 +181,15 @@ export default function Home() {
           <div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
               <div className="relative w-96">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Buscar cliente o número..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-4 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="text-xs text-slate-500 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-600" />
                 <span>Abastecimiento dinámico basado en lectura de CVs</span>
               </div>
             </div>
@@ -231,13 +247,12 @@ export default function Home() {
           <div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
               <div className="relative w-96">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Buscar por cargo, tareas o palabra clave..."
                   value={manualSearchTerm}
                   onChange={(e) => setManualSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-4 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <span className="text-xs text-slate-500">
@@ -266,7 +281,6 @@ export default function Home() {
           <div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
               <div className="flex items-center space-x-2">
-                <Filter className="w-4 h-4 text-slate-400" />
                 <span className="text-xs font-medium text-slate-600">Filtrar por estado:</span>
                 <select
                   value={statusFilter}
@@ -288,17 +302,27 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {filteredCandidates.length > 0 ? (
                 filteredCandidates.map((candidate) => (
-                  <div key={candidate.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-bold text-slate-900">{candidate.name}</h4>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
-                        {candidate.status}
-                      </span>
+                  <div key={candidate.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-bold text-slate-900 text-sm">{candidate.name}</h4>
+                        <select
+                          value={candidate.status}
+                          onChange={(e) => handleStatusChange(candidate.id, e.target.value as CandidateStatus)}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getStatusBadgeStyle(candidate.status)} focus:outline-none cursor-pointer`}
+                        >
+                          <option value="NUEVO">NUEVO</option>
+                          <option value="EVALUACION">EVALUACIÓN</option>
+                          <option value="ENTREVISTA">ENTREVISTA</option>
+                          <option value="SELECCIONADO">SELECCIONADO</option>
+                        </select>
+                      </div>
+                      <p className="text-xs text-blue-600 font-medium">{candidate.position}</p>
+                      <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
                     </div>
-                    <p className="text-xs text-blue-600 font-medium mt-1">{candidate.position}</p>
-                    <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
+
                     {candidate.matchedOperativas.length > 0 && (
-                      <div className="mt-3 pt-2 border-t border-slate-100">
+                      <div className="mt-4 pt-3 border-t border-slate-100">
                         <span className="text-[10px] text-slate-400 font-medium block mb-1">Operativas asignadas:</span>
                         <div className="flex flex-wrap gap-1">
                           {candidate.matchedOperativas.map((op, idx) => (
@@ -313,7 +337,6 @@ export default function Home() {
                 ))
               ) : (
                 <div className="col-span-3 text-center py-12 text-slate-400 bg-white rounded-xl border border-slate-200">
-                  <UserCheck className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No se encontraron candidatos con el filtro seleccionado.</p>
                 </div>
               )}
