@@ -1,5 +1,5 @@
 // app/page.tsx
-'use 'client';
+'use client';
 
 import React, { useState, useRef } from 'react';
 import { 
