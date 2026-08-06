@@ -11,8 +11,8 @@ import {
   PhoneCall,
   UserCheck
 } from 'lucide-react';
-import { Candidate, GrupoOperativa } from '@/types';
-import { OPERATIVAS_BASE, MANUAL_CARGOS_BASE } from '@/data/mockData';
+import { Candidate, GrupoOperativa } from '../types';
+import { OPERATIVAS_BASE, MANUAL_CARGOS_BASE } from '../data/mockData';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'operativas' | 'manual' | 'candidates'>('operativas');
