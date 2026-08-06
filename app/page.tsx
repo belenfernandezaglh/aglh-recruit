@@ -5,15 +5,18 @@ import React, { useState, useRef } from 'react';
 import { Candidate, CandidateStatus, GrupoOperativa } from '../types';
 import { OPERATIVAS_BASE, MANUAL_CARGOS_BASE } from '../data/mockData';
 
+type ViewMode = 'operativas' | 'manual' | 'candidates' | 'solicitudes' | 'reportes' | 'configuracion';
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'operativas' | 'manual' | 'candidates'>('operativas');
+  const [activeTab, setActiveTab] = useState<ViewMode>('operativas');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   
   // Estados para búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [manualSearchTerm, setManualSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('TODOS');
   
-  // Estado para Drag & Drop y Modal
+  // Drag & Drop y Modal
   const [isDragging, setIsDragging] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
 
@@ -158,7 +161,7 @@ export default function Home() {
         className="hidden" 
       />
 
-      {/* Drop Zone Modal Overlay */}
+      {/* Overlay Drag & Drop */}
       {isDragging && (
         <div className="fixed inset-0 bg-[#8cb800]/20 backdrop-blur-sm border-4 border-dashed border-[#8cb800] z-50 flex items-center justify-center pointer-events-none">
           <div className="bg-white p-8 rounded-2xl shadow-2xl text-center border border-slate-100">
@@ -168,30 +171,94 @@ export default function Home() {
         </div>
       )}
 
-      {/* Sidebar Izquierda Estilo AGLH */}
-      <aside className="w-16 bg-[#1f2937] text-white flex flex-col items-center py-4 space-y-6 shrink-0 border-r border-slate-800">
-        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
-          <span className="text-lg">☰</span>
-        </button>
-        <div className="w-8 h-[1px] bg-slate-700" />
-        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300 title='Inicio'">
-          <span className="text-sm">✉</span>
-        </button>
-        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
-          <span className="text-sm">🏷</span>
-        </button>
-        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
-          <span className="text-sm">👤</span>
-        </button>
-        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
-          <span className="text-sm">💼</span>
-        </button>
-        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
-          <span className="text-sm">📊</span>
-        </button>
-        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
-          <span className="text-sm">⚙</span>
-        </button>
+      {/* Sidebar Dinámico Interactiva */}
+      <aside className={`${isSidebarCollapsed ? 'w-16' : 'w-56'} bg-[#1f2937] text-white flex flex-col py-4 transition-all duration-300 shrink-0 border-r border-slate-800 z-30`}>
+        <div className="px-3 pb-3 border-b border-slate-700/60 flex items-center justify-between">
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300 transition-colors mx-auto"
+            title="Expandir / Contraer menú"
+          >
+            <span className="text-lg">☰</span>
+          </button>
+          {!isSidebarCollapsed && (
+            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase pr-2">Menú</span>
+          )}
+        </div>
+
+        <nav className="flex-1 space-y-1.5 px-2 mt-4">
+          {/* Solicitudes */}
+          <button
+            onClick={() => setActiveTab('solicitudes')}
+            className={`w-full h-10 rounded-lg flex items-center px-3 transition-colors ${
+              activeTab === 'solicitudes' ? 'bg-[#8cb800] text-white font-bold' : 'text-slate-300 hover:bg-slate-700/60'
+            }`}
+            title="Solicitudes"
+          >
+            <span className="text-base min-w-[24px] text-center">✉</span>
+            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Solicitudes</span>}
+          </button>
+
+          {/* Manual de Cargos */}
+          <button
+            onClick={() => setActiveTab('manual')}
+            className={`w-full h-10 rounded-lg flex items-center px-3 transition-colors ${
+              activeTab === 'manual' ? 'bg-[#8cb800] text-white font-bold' : 'text-slate-300 hover:bg-slate-700/60'
+            }`}
+            title="Manual de Cargos"
+          >
+            <span className="text-base min-w-[24px] text-center">🏷</span>
+            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Manual de Cargos</span>}
+          </button>
+
+          {/* Postulantes */}
+          <button
+            onClick={() => setActiveTab('candidates')}
+            className={`w-full h-10 rounded-lg flex items-center px-3 transition-colors ${
+              activeTab === 'candidates' ? 'bg-[#8cb800] text-white font-bold' : 'text-slate-300 hover:bg-slate-700/60'
+            }`}
+            title="Postulantes"
+          >
+            <span className="text-base min-w-[24px] text-center">👤</span>
+            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Postulantes</span>}
+          </button>
+
+          {/* Abastecimiento / Operativas */}
+          <button
+            onClick={() => setActiveTab('operativas')}
+            className={`w-full h-10 rounded-lg flex items-center px-3 transition-colors ${
+              activeTab === 'operativas' ? 'bg-[#8cb800] text-white font-bold' : 'text-slate-300 hover:bg-slate-700/60'
+            }`}
+            title="Abastecimiento"
+          >
+            <span className="text-base min-w-[24px] text-center">💼</span>
+            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Abastecimiento</span>}
+          </button>
+
+          {/* Métricas / Reportes */}
+          <button
+            onClick={() => setActiveTab('reportes')}
+            className={`w-full h-10 rounded-lg flex items-center px-3 transition-colors ${
+              activeTab === 'reportes' ? 'bg-[#8cb800] text-white font-bold' : 'text-slate-300 hover:bg-slate-700/60'
+            }`}
+            title="Reportes"
+          >
+            <span className="text-base min-w-[24px] text-center">📊</span>
+            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Reportes & KPIs</span>}
+          </button>
+
+          {/* Ajustes */}
+          <button
+            onClick={() => setActiveTab('configuracion')}
+            className={`w-full h-10 rounded-lg flex items-center px-3 transition-colors ${
+              activeTab === 'configuracion' ? 'bg-[#8cb800] text-white font-bold' : 'text-slate-300 hover:bg-slate-700/60'
+            }`}
+            title="Configuración"
+          >
+            <span className="text-base min-w-[24px] text-center">⚙</span>
+            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Configuración</span>}
+          </button>
+        </nav>
       </aside>
 
       {/* Contenido Principal */}
@@ -207,43 +274,20 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Navegación Principal */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setActiveTab('operativas')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'operativas' ? 'bg-white text-[#8cb800] shadow-sm' : 'text-white hover:bg-white/10'
-              }`}
-            >
-              Abastecimiento
-            </button>
-            <button
-              onClick={() => setActiveTab('manual')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'manual' ? 'bg-white text-[#8cb800] shadow-sm' : 'text-white hover:bg-white/10'
-              }`}
-            >
-              Manual de Cargos
-            </button>
-            <button
-              onClick={() => setActiveTab('candidates')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'candidates' ? 'bg-white text-[#8cb800] shadow-sm' : 'text-white hover:bg-white/10'
-              }`}
-            >
-              Candidatos ({candidates.length})
-            </button>
-            
+          <div className="flex items-center space-x-3">
+            <span className="text-xs font-semibold bg-white/20 px-3 py-1 rounded-full uppercase tracking-wider">
+              {activeTab}
+            </span>
             <button 
               onClick={handleUploadClick}
-              className="ml-3 bg-[#1f2937] hover:bg-black text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+              className="bg-[#1f2937] hover:bg-black text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
             >
               + Cargar CVs
             </button>
           </div>
         </header>
 
-        {/* Muestrario de KPIs Resumido */}
+        {/* Bar de KPIs Superior */}
         <div className="bg-white border-b border-slate-200 px-8 py-2.5 flex justify-between items-center text-xs text-slate-600">
           <div className="flex space-x-8">
             <div>Total Vacantes: <strong className="text-slate-900">{totalVacantes}</strong></div>
@@ -253,15 +297,16 @@ export default function Home() {
           <span className="text-slate-400 text-[11px]">Panel Interno / Outsourcing</span>
         </div>
 
-        {/* Cuerpo de la Página */}
+        {/* Vista dinámica según selección de la Sidebar */}
         <main className="p-8 max-w-6xl mx-auto w-full">
-          <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
-            Lista de abastecimiento de Talentos
-          </h2>
-
-          {/* VISTA ABASTECIMIENTO / OPERATIVAS */}
+          
+          {/* VISTA 1: ABASTECIMIENTO / OPERATIVAS (💼) */}
           {activeTab === 'operativas' && (
             <div className="space-y-6">
+              <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
+                Lista de abastecimiento de Talentos
+              </h2>
+
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                 <label className="text-xs text-[#8cb800] font-semibold block mb-1">Operativa / Cliente</label>
                 <input
@@ -316,13 +361,17 @@ export default function Home() {
             </div>
           )}
 
-          {/* VISTA MANUAL DE CARGOS */}
+          {/* VISTA 2: MANUAL DE CARGOS (🏷) */}
           {activeTab === 'manual' && (
             <div className="space-y-6">
+              <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
+                Manual de Cargos
+              </h2>
+
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                 <input
                   type="text"
-                  placeholder="Buscar cargo..."
+                  placeholder="Buscar por código, título o descripción..."
                   value={manualSearchTerm}
                   onChange={(e) => setManualSearchTerm(e.target.value)}
                   className="w-full border border-slate-300 rounded p-2 text-sm focus:outline-none focus:border-[#8cb800]"
@@ -332,7 +381,7 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredCargos.map((cargo) => (
                   <div key={cargo.id} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-[#8cb800]">
-                    <span className="text-[10px] font-bold text-[#8cb800] uppercase">Cargo {cargo.id}</span>
+                    <span className="text-[10px] font-bold text-[#8cb800] uppercase">Código {cargo.id}</span>
                     <h3 className="font-bold text-slate-800 text-sm mt-1">{cargo.title}</h3>
                     <p className="text-xs text-slate-600 mt-2 leading-relaxed">{cargo.funcion}</p>
                   </div>
@@ -341,22 +390,26 @@ export default function Home() {
             </div>
           )}
 
-          {/* VISTA CANDIDATOS */}
+          {/* VISTA 3: POSTULANTES (👤) */}
           {activeTab === 'candidates' && (
             <div className="space-y-6">
+              <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
+                Base General de Candidatos
+              </h2>
+
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#8cb800]"
                 >
-                  <option value="TODOS">Todos los estados</option>
+                  <option value="TODOS">Todas las etapas</option>
                   <option value="NUEVO">NUEVO</option>
                   <option value="EVALUACION">EVALUACIÓN</option>
                   <option value="ENTREVISTA">ENTREVISTA</option>
                   <option value="SELECCIONADO">SELECCIONADO</option>
                 </select>
-                <span className="text-xs text-slate-500">{filteredCandidates.length} Candidatos</span>
+                <span className="text-xs text-slate-500">{filteredCandidates.length} Candidatos registrados</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -379,10 +432,71 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {/* VISTA 4: SOLICITUDES (✉) */}
+          {activeTab === 'solicitudes' && (
+            <div className="space-y-6">
+              <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
+                Bandeja de Solicitudes de Personal
+              </h2>
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm text-center">
+                <p className="text-sm text-slate-600 mb-4">No hay nuevas solicitudes pendientes de revisión por parte de los clientes.</p>
+                <button 
+                  onClick={() => setActiveTab('operativas')}
+                  className="bg-[#8cb800] text-white text-xs px-4 py-2 rounded font-bold"
+                >
+                  Ir a Mesa de Abastecimiento
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA 5: REPORTES (📊) */}
+          {activeTab === 'reportes' && (
+            <div className="space-y-6">
+              <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
+                Indicadores y Reportes
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Vacantes Requeridas</p>
+                  <p className="text-2xl font-bold text-slate-800 mt-1">{totalVacantes}</p>
+                </div>
+                <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Candidatos Asignados</p>
+                  <p className="text-2xl font-bold text-[#8cb800] mt-1">{totalCubiertas}</p>
+                </div>
+                <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Porcentaje de Cobertura</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">{porcentajeAbastecimiento}%</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA 6: CONFIGURACIÓN (⚙) */}
+          {activeTab === 'configuracion' && (
+            <div className="space-y-6">
+              <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
+                Configuración del Sistema
+              </h2>
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm max-w-lg mx-auto space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block">Nombre del Portal</label>
+                  <input type="text" value="AGLH Recruit" disabled className="w-full border border-slate-200 rounded p-2 text-xs bg-slate-50 mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block">Unidad de Negocio</label>
+                  <input type="text" value="Outsourcing & Selección de Personal" disabled className="w-full border border-slate-200 rounded p-2 text-xs bg-slate-50 mt-1" />
+                </div>
+              </div>
+            </div>
+          )}
+
         </main>
       </div>
 
-      {/* Modal Ficha de Candidato */}
+      {/* Modal Expediente de Candidato */}
       {selectedCandidate && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full border border-slate-200 shadow-2xl p-6">
