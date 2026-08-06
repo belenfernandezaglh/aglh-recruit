@@ -22,7 +22,7 @@ export default function Home() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cálculos de Métricas Globales (KPIs)
+  // Métricas
   const totalVacantes = operativas.reduce((acc, group) => 
     acc + group.cuentas.reduce((cAcc, cuenta) => cAcc + cuenta.vacantes, 0), 0);
   
@@ -89,7 +89,6 @@ export default function Home() {
     }
   };
 
-  // Manejo de Drag & Drop Global
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -120,13 +119,13 @@ export default function Home() {
   const getStatusBadgeStyle = (status: CandidateStatus) => {
     switch (status) {
       case 'NUEVO':
-        return 'bg-blue-50 text-blue-800 border-blue-200';
+        return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'EVALUACION':
-        return 'bg-amber-50 text-amber-800 border-amber-200';
+        return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'ENTREVISTA':
-        return 'bg-purple-50 text-purple-800 border-purple-200';
+        return 'bg-purple-50 text-purple-700 border-purple-200';
       case 'SELECCIONADO':
-        return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       default:
         return 'bg-slate-100 text-slate-700 border-slate-200';
     }
@@ -145,7 +144,7 @@ export default function Home() {
 
   return (
     <div 
-      className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans relative"
+      className="min-h-screen bg-[#f3f4f6] text-slate-800 flex"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -159,318 +158,251 @@ export default function Home() {
         className="hidden" 
       />
 
-      {/* Superposición visual Drag & Drop */}
+      {/* Drop Zone Modal Overlay */}
       {isDragging && (
-        <div className="fixed inset-0 bg-[#0f223d]/20 backdrop-blur-sm border-4 border-dashed border-[#0f223d] z-50 flex items-center justify-center pointer-events-none">
+        <div className="fixed inset-0 bg-[#8cb800]/20 backdrop-blur-sm border-4 border-dashed border-[#8cb800] z-50 flex items-center justify-center pointer-events-none">
           <div className="bg-white p-8 rounded-2xl shadow-2xl text-center border border-slate-100">
-            <p className="text-xl font-bold text-[#0f223d]">Suelta los CVs aquí</p>
+            <p className="text-xl font-bold text-slate-800">Suelta los CVs aquí para procesar</p>
             <p className="text-xs text-slate-500 mt-1">Soporta documentos PDF, DOC y DOCX</p>
           </div>
         </div>
       )}
 
-      {/* Header Estilo AGLH Consultores */}
-      <header className="bg-[#0f223d] text-white sticky top-0 z-20 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="bg-white text-[#0f223d] font-black px-3 py-1.5 rounded-md text-2xl tracking-tight shadow-sm">
-              AGLH
-            </div>
-            <div className="border-l border-slate-700 pl-4">
-              <h1 className="font-bold text-lg leading-tight tracking-wide uppercase text-slate-100">AGLH Consultores</h1>
-              <p className="text-xs text-blue-200 tracking-wider font-light">Plataforma Interna de Selección & Gestión de Talentos</p>
+      {/* Sidebar Izquierda Estilo AGLH */}
+      <aside className="w-16 bg-[#1f2937] text-white flex flex-col items-center py-4 space-y-6 shrink-0 border-r border-slate-800">
+        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
+          <span className="text-lg">☰</span>
+        </button>
+        <div className="w-8 h-[1px] bg-slate-700" />
+        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300 title='Inicio'">
+          <span className="text-sm">✉</span>
+        </button>
+        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
+          <span className="text-sm">🏷</span>
+        </button>
+        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
+          <span className="text-sm">👤</span>
+        </button>
+        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
+          <span className="text-sm">💼</span>
+        </button>
+        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
+          <span className="text-sm">📊</span>
+        </button>
+        <button className="w-10 h-10 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
+          <span className="text-sm">⚙</span>
+        </button>
+      </aside>
+
+      {/* Contenido Principal */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Banner Superior Verde AGLH */}
+        <header className="bg-[#8cb800] text-white h-16 px-6 flex items-center justify-between shadow-sm">
+          <div className="flex items-center space-x-3">
+            <div className="font-extrabold text-2xl tracking-tight text-white flex items-center">
+              <span>aglh</span>
+              <span className="text-[10px] font-normal tracking-normal ml-2 hidden sm:inline-block border-l border-white/40 pl-2">
+                SERVICIOS HUMANOS INTEGRALES
+              </span>
             </div>
           </div>
 
-          <div className="flex bg-[#1e3a5f] p-1 rounded-lg border border-slate-700">
+          {/* Navegación Principal */}
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => setActiveTab('operativas')}
-              className={`px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition-all ${
-                activeTab === 'operativas' ? 'bg-white text-[#0f223d] shadow-sm font-bold' : 'text-slate-300 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'operativas' ? 'bg-white text-[#8cb800] shadow-sm' : 'text-white hover:bg-white/10'
               }`}
             >
-              Mesa Operativa
+              Abastecimiento
             </button>
             <button
               onClick={() => setActiveTab('manual')}
-              className={`px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition-all ${
-                activeTab === 'manual' ? 'bg-white text-[#0f223d] shadow-sm font-bold' : 'text-slate-300 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'manual' ? 'bg-white text-[#8cb800] shadow-sm' : 'text-white hover:bg-white/10'
               }`}
             >
               Manual de Cargos
             </button>
             <button
               onClick={() => setActiveTab('candidates')}
-              className={`px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition-all ${
-                activeTab === 'candidates' ? 'bg-white text-[#0f223d] shadow-sm font-bold' : 'text-slate-300 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'candidates' ? 'bg-white text-[#8cb800] shadow-sm' : 'text-white hover:bg-white/10'
               }`}
             >
               Candidatos ({candidates.length})
             </button>
+            
+            <button 
+              onClick={handleUploadClick}
+              className="ml-3 bg-[#1f2937] hover:bg-black text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+            >
+              + Cargar CVs
+            </button>
           </div>
-          
-          <button 
-            onClick={handleUploadClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-xs uppercase font-bold tracking-wider transition-colors shadow-sm border border-blue-500"
-          >
-            Cargar CVs
-          </button>
-        </div>
-      </header>
+        </header>
 
-      {/* Panel de Métricas Corporativas (KPIs) */}
-      <section className="bg-[#172e4d] text-white border-b border-slate-800 py-3.5 shadow-inner">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="border-r border-slate-700 pr-4">
-            <p className="text-[10px] text-blue-200 font-semibold tracking-wider uppercase">Requerimientos Totales</p>
-            <p className="text-xl font-bold text-white mt-0.5">{totalVacantes} Vacantes</p>
+        {/* Muestrario de KPIs Resumido */}
+        <div className="bg-white border-b border-slate-200 px-8 py-2.5 flex justify-between items-center text-xs text-slate-600">
+          <div className="flex space-x-8">
+            <div>Total Vacantes: <strong className="text-slate-900">{totalVacantes}</strong></div>
+            <div>Postulantes Asignados: <strong className="text-[#8cb800]">{totalCubiertas}</strong></div>
+            <div>Nivel Cobertura: <strong className="text-slate-900">{porcentajeAbastecimiento}%</strong></div>
           </div>
-          <div className="border-r border-slate-700 pr-4">
-            <p className="text-[10px] text-blue-200 font-semibold tracking-wider uppercase">Postulantes Asignados</p>
-            <p className="text-xl font-bold text-emerald-400 mt-0.5">{totalCubiertas}</p>
-          </div>
-          <div className="border-r border-slate-700 pr-4">
-            <p className="text-[10px] text-blue-200 font-semibold tracking-wider uppercase">Nivel de Cobertura</p>
-            <p className="text-xl font-bold text-blue-300 mt-0.5">{porcentajeAbastecimiento}%</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-blue-200 font-semibold tracking-wider uppercase">Base de Candidatos</p>
-            <p className="text-xl font-bold text-white mt-0.5">{candidates.length}</p>
-          </div>
+          <span className="text-slate-400 text-[11px]">Panel Interno / Outsourcing</span>
         </div>
-      </section>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* VISTA OPERATIVAS */}
-        {activeTab === 'operativas' && (
-          <div>
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
-              <div className="relative w-96">
+        {/* Cuerpo de la Página */}
+        <main className="p-8 max-w-6xl mx-auto w-full">
+          <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
+            Lista de abastecimiento de Talentos
+          </h2>
+
+          {/* VISTA ABASTECIMIENTO / OPERATIVAS */}
+          {activeTab === 'operativas' && (
+            <div className="space-y-6">
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                <label className="text-xs text-[#8cb800] font-semibold block mb-1">Operativa / Cliente</label>
                 <input
                   type="text"
-                  placeholder="Buscar cliente o número..."
+                  placeholder="Filtrar por cliente..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-4 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f223d]"
+                  className="w-full border border-slate-300 rounded p-2 text-sm focus:outline-none focus:border-[#8cb800]"
                 />
               </div>
-              <div className="text-xs text-slate-500 font-medium">
-                Abastecimiento de personal para clientes de outsourcing
-              </div>
-            </div>
 
-            {operativas.map((group, gIdx) => (
-              <div key={gIdx} className="mb-8">
-                <div className="bg-[#0f223d] text-white p-3.5 rounded-t-xl font-bold text-xs tracking-wider uppercase flex justify-between items-center">
-                  <span>Ejecutivo de Cuenta: {group.ejecutivo}</span>
-                  <span className="text-[11px] text-blue-200 font-normal">{group.cuentas.length} Cuentas Asignadas</span>
-                </div>
-                
-                <div className="bg-white border border-t-0 border-slate-200 rounded-b-xl shadow-sm p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {group.cuentas
-                    .filter(c => c.cliente.toLowerCase().includes(searchTerm.toLowerCase()))
-                    .map((cuenta) => {
-                      const isCovered = cuenta.contactos.length >= cuenta.vacantes;
-                      return (
-                        <div key={cuenta.id} className="border border-slate-200 rounded-lg p-4 hover:border-blue-400 transition-colors bg-white shadow-xs">
-                          <div className="border-b border-slate-100 pb-2 mb-3">
-                            <div className="flex justify-between items-center">
-                              <span className="font-bold text-sm text-[#0f223d] truncate">{cuenta.cliente}</span>
-                              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
-                                isCovered ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+              {operativas.map((group, gIdx) => (
+                <div key={gIdx} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mb-6">
+                  <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-xs text-slate-700 uppercase tracking-wider flex justify-between">
+                    <span>Ejecutivo: {group.ejecutivo}</span>
+                    <span>{group.cuentas.length} Cuentas</span>
+                  </div>
+
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {group.cuentas
+                      .filter(c => c.cliente.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((cuenta) => {
+                        const isCovered = cuenta.contactos.length >= cuenta.vacantes;
+                        return (
+                          <div key={cuenta.id} className="border border-slate-200 rounded p-3 bg-white hover:border-[#8cb800] transition-colors">
+                            <div className="flex justify-between items-center mb-2 pb-1 border-b border-slate-100">
+                              <span className="font-bold text-xs text-slate-800">{cuenta.cliente}</span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                                isCovered ? 'bg-[#8cb800]/15 text-[#8cb800]' : 'bg-amber-100 text-amber-800'
                               }`}>
-                                {cuenta.contactos.length} / {cuenta.vacantes} Vacantes
+                                {cuenta.contactos.length} / {cuenta.vacantes}
                               </span>
                             </div>
-                          </div>
-                          
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                            {cuenta.contactos.length > 0 ? (
-                              cuenta.contactos.map((contacto, numIdx) => (
-                                <div key={numIdx} className="text-xs text-slate-700 font-mono flex items-center space-x-1.5">
-                                  <span className="text-emerald-600 font-bold">•</span>
-                                  <span>{contacto}</span>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-xs text-slate-400 italic py-2">
-                                Sin postulantes asignados...
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
 
-        {/* VISTA MANUAL DE CARGOS */}
-        {activeTab === 'manual' && (
-          <div>
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
-              <div className="relative w-96">
-                <input
-                  type="text"
-                  placeholder="Buscar por cargo, tareas o palabra clave..."
-                  value={manualSearchTerm}
-                  onChange={(e) => setManualSearchTerm(e.target.value)}
-                  className="w-full pl-4 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0f223d]"
-                />
-              </div>
-              <span className="text-xs text-slate-500 font-medium">
-                Mostrando {filteredCargos.length} de {MANUAL_CARGOS_BASE.length} perfiles estructurados
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredCargos.map((cargo) => (
-                <div key={cargo.id} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:border-blue-400 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-[10px] font-bold px-2.5 py-1 bg-[#0f223d] text-white rounded uppercase tracking-wider">
-                      Perfil {cargo.id}
-                    </span>
+                            <div className="space-y-1">
+                              {cuenta.contactos.length > 0 ? (
+                                cuenta.contactos.map((contacto, idx) => (
+                                  <p key={idx} className="text-xs text-slate-600 font-mono truncate">
+                                    • {contacto}
+                                  </p>
+                                ))
+                              ) : (
+                                <p className="text-xs text-slate-400 italic">Sin postulantes...</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
-                  <h3 className="text-base font-bold text-[#0f223d]">{cargo.title}</h3>
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">{cargo.funcion}</p>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* VISTA CANDIDATOS */}
-        {activeTab === 'candidates' && (
-          <div>
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-semibold text-slate-600">Filtrar por etapa:</span>
+          {/* VISTA MANUAL DE CARGOS */}
+          {activeTab === 'manual' && (
+            <div className="space-y-6">
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                <input
+                  type="text"
+                  placeholder="Buscar cargo..."
+                  value={manualSearchTerm}
+                  onChange={(e) => setManualSearchTerm(e.target.value)}
+                  className="w-full border border-slate-300 rounded p-2 text-sm focus:outline-none focus:border-[#8cb800]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredCargos.map((cargo) => (
+                  <div key={cargo.id} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-[#8cb800]">
+                    <span className="text-[10px] font-bold text-[#8cb800] uppercase">Cargo {cargo.id}</span>
+                    <h3 className="font-bold text-slate-800 text-sm mt-1">{cargo.title}</h3>
+                    <p className="text-xs text-slate-600 mt-2 leading-relaxed">{cargo.funcion}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* VISTA CANDIDATOS */}
+          {activeTab === 'candidates' && (
+            <div className="space-y-6">
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#0f223d] bg-white text-slate-800 font-medium"
+                  className="border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#8cb800]"
                 >
-                  <option value="TODOS">Todas las etapas</option>
+                  <option value="TODOS">Todos los estados</option>
                   <option value="NUEVO">NUEVO</option>
                   <option value="EVALUACION">EVALUACIÓN</option>
                   <option value="ENTREVISTA">ENTREVISTA</option>
                   <option value="SELECCIONADO">SELECCIONADO</option>
                 </select>
+                <span className="text-xs text-slate-500">{filteredCandidates.length} Candidatos</span>
               </div>
-              <span className="text-xs text-slate-500 font-medium">
-                Total: {filteredCandidates.length} postulantes
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {filteredCandidates.length > 0 ? (
-                filteredCandidates.map((candidate) => (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {filteredCandidates.map((candidate) => (
                   <div 
-                    key={candidate.id} 
+                    key={candidate.id}
                     onClick={() => setSelectedCandidate(candidate)}
-                    className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-blue-400 cursor-pointer transition-all hover:shadow-md"
+                    className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm hover:border-[#8cb800] cursor-pointer transition-colors"
                   >
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-bold text-[#0f223d] text-sm">{candidate.name}</h4>
-                        <select
-                          value={candidate.status}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => handleStatusChange(candidate.id, e.target.value as CandidateStatus)}
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getStatusBadgeStyle(candidate.status)} focus:outline-none cursor-pointer`}
-                        >
-                          <option value="NUEVO">NUEVO</option>
-                          <option value="EVALUACION">EVALUACIÓN</option>
-                          <option value="ENTREVISTA">ENTREVISTA</option>
-                          <option value="SELECCIONADO">SELECCIONADO</option>
-                        </select>
-                      </div>
-                      <p className="text-xs text-blue-700 font-semibold">{candidate.position}</p>
-                      <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-xs text-slate-800">{candidate.name}</h4>
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${getStatusBadgeStyle(candidate.status)}`}>
+                        {candidate.status}
+                      </span>
                     </div>
-
-                    {candidate.matchedOperativas.length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-slate-100">
-                        <span className="text-[10px] text-slate-400 font-medium block mb-1">Empresas Compatibles:</span>
-                        <div className="flex flex-wrap gap-1">
-                          {candidate.matchedOperativas.map((op, idx) => (
-                            <span key={idx} className="text-[10px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-medium">
-                              {op}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <p className="text-xs text-[#8cb800] font-semibold mt-1">{candidate.position}</p>
+                    <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
                   </div>
-                ))
-              ) : (
-                <div className="col-span-3 text-center py-12 text-slate-400 bg-white rounded-xl border border-slate-200">
-                  <p className="text-sm">No se encontraron candidatos para la etapa seleccionada.</p>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </main>
+          )}
+        </main>
+      </div>
 
-      {/* Modal Ficha del Candidato - AGLH Consultores */}
+      {/* Modal Ficha de Candidato */}
       {selectedCandidate && (
-        <div className="fixed inset-0 bg-[#0f223d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl p-6">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-4 mb-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full border border-slate-200 shadow-2xl p-6">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3 mb-3">
               <div>
-                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded border ${getStatusBadgeStyle(selectedCandidate.status)}`}>
-                  {selectedCandidate.status}
-                </span>
-                <h3 className="text-lg font-bold text-[#0f223d] mt-1">{selectedCandidate.name}</h3>
-                <p className="text-xs text-blue-700 font-semibold">{selectedCandidate.position}</p>
+                <h3 className="text-base font-bold text-slate-800">{selectedCandidate.name}</h3>
+                <p className="text-xs text-[#8cb800] font-semibold">{selectedCandidate.position}</p>
               </div>
-              <button 
-                onClick={() => setSelectedCandidate(null)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1"
-              >
-                ✕
-              </button>
+              <button onClick={() => setSelectedCandidate(null)} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
-              <div>
-                <span className="text-slate-400 font-medium block">Teléfono de Contacto:</span>
-                <p className="text-slate-800 font-mono text-sm font-semibold mt-0.5">{selectedCandidate.phone}</p>
-              </div>
-
-              <div>
-                <span className="text-slate-400 font-medium block">Documento de Currículum:</span>
-                <p className="text-slate-700 font-mono mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                  {selectedCandidate.fileName}
-                </p>
-              </div>
-
-              <div>
-                <span className="text-slate-400 font-medium block">Ingreso al Sistema:</span>
-                <p className="text-slate-700 mt-0.5">{selectedCandidate.date}</p>
-              </div>
-
-              <div>
-                <span className="text-slate-400 font-medium block mb-1">Cuentas Operativas Asignadas:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedCandidate.matchedOperativas.map((op, idx) => (
-                    <span key={idx} className="bg-blue-50 text-blue-900 border border-blue-100 px-2.5 py-1 rounded-md font-semibold">
-                      {op}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-2 text-xs">
+              <p><strong>Teléfono:</strong> <span className="font-mono">{selectedCandidate.phone}</span></p>
+              <p><strong>Documento:</strong> {selectedCandidate.fileName}</p>
+              <p><strong>Fecha:</strong> {selectedCandidate.date}</p>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
-              <button
-                onClick={() => setSelectedCandidate(null)}
-                className="bg-[#0f223d] hover:bg-[#172e4d] text-white px-5 py-2 rounded-lg font-semibold text-xs transition-colors shadow-sm"
-              >
-                Cerrar Expediente
+            <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setSelectedCandidate(null)} className="bg-[#1f2937] text-white px-4 py-1.5 rounded text-xs font-semibold">
+                Cerrar
               </button>
             </div>
           </div>
