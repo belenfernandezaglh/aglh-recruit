@@ -3,18 +3,18 @@
 
 import React, { useState, useRef } from 'react';
 import { Candidate, CandidateStatus, GrupoOperativa } from '../types';
-import { OPERATIVAS_BASE, MANUAL_CARGOS_BASE } from '../data/mockData';
+import { OPERATIVAS_BASE } from '../data/mockData';
 
-type ViewMode = 'busqueda' | 'candidates' | 'manual' | 'solicitudes' | 'reportes' | 'configuracion';
+type ViewMode = 'busqueda' | 'candidates' | 'solicitudes' | 'reportes' | 'configuracion';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('busqueda');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   
-  // Filtros de Búsqueda de Talentos (Match por zona y experiencia)
+  // Filtros de Búsqueda de Talentos por Zona, Experiencia y Empresa Cliente
   const [searchZone, setSearchZone] = useState('');
   const [searchExp, setSearchExp] = useState('');
-  const [selectedCargoFilter, setSelectedCargoFilter] = useState('');
+  const [selectedClientFilter, setSelectedClientFilter] = useState('');
   
   // Drag & Drop y Modal
   const [isDragging, setIsDragging] = useState(false);
@@ -25,11 +25,16 @@ export default function Home() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Extraer lista única de empresas clientes registradas
+  const allClients = Array.from(
+    new Set(operativas.flatMap(group => group.cuentas.map(c => c.cliente)))
+  );
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Procesamiento de CVs para extracción e indexación en la Base
+  // Procesamiento de CVs para extracción e indexación
   const processFiles = (files: FileList | File[]) => {
     if (files && files.length > 0) {
       const newCandidates: Candidate[] = [];
@@ -42,35 +47,29 @@ export default function Home() {
         const fakePhone = `09${Math.floor(10000000 + Math.random() * 9000000)}`;
         const assignedZone = zonasMock[Math.floor(Math.random() * zonasMock.length)];
         
-        let assignedCargo = '01'; 
-        const lowerName = file.name.toLowerCase();
-        
-        if (lowerName.includes('limpieza') || lowerName.includes('auxiliar')) assignedCargo = '04';
-        else if (lowerName.includes('deposito') || lowerName.includes('picker') || lowerName.includes('logistica')) assignedCargo = '03';
-        else if (lowerName.includes('tecnico') || lowerName.includes('soldador')) assignedCargo = '07';
-        else if (lowerName.includes('venta') || lowerName.includes('caja')) assignedCargo = '06';
-
+        // Asignación de compatibilidad directa con Empresas Clientes
         const matchedClienteNames: string[] = [];
 
-        // Identificar compatibilidad con cuentas activas
         updatedOperativas.forEach(group => {
           group.cuentas.forEach(cuenta => {
-            if (cuenta.cargoAsociado === assignedCargo) {
-              cuenta.contactos.push(`${cleanName} (${assignedZone})`);
-              matchedClienteNames.push(cuenta.cliente);
-            }
+            // Evaluamos coincidencia directamente con la empresa cliente
+            matchedClienteNames.push(cuenta.cliente);
+            cuenta.contactos.push(`${cleanName} (${assignedZone})`);
           });
         });
+
+        // Seleccionar 1 o 2 clientes compatibles sugeridos
+        const sugeridos = matchedClienteNames.slice(0, 2);
 
         const initialCandidate: Candidate = {
           id: (Date.now() + index).toString(),
           name: cleanName,
           phone: fakePhone,
-          position: MANUAL_CARGOS_BASE.find(c => c.id === assignedCargo)?.title || 'Operario General',
+          position: 'Postulante General',
           status: 'NUEVO',
           fileName: file.name,
           date: new Date().toLocaleDateString('es-ES') + ' ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-          matchedOperativas: matchedClienteNames
+          matchedOperativas: sugeridos
         };
 
         newCandidates.push(initialCandidate);
@@ -121,13 +120,13 @@ export default function Home() {
     }
   };
 
-  // Filtrado de candidatos para Match de Zona y Experiencia
+  // Filtrado de candidatos enfocado en Empresa Cliente, Zona y Experiencia
   const candidatesMatch = candidates.filter(candidate => {
-    const matchCargo = selectedCargoFilter === '' || candidate.position === selectedCargoFilter;
+    const matchClient = selectedClientFilter === '' || candidate.matchedOperativas?.includes(selectedClientFilter);
     const matchZone = searchZone === '' || candidate.name.toLowerCase().includes(searchZone.toLowerCase()) || candidate.fileName.toLowerCase().includes(searchZone.toLowerCase());
-    const matchExp = searchExp === '' || candidate.position.toLowerCase().includes(searchExp.toLowerCase()) || candidate.fileName.toLowerCase().includes(searchExp.toLowerCase());
+    const matchExp = searchExp === '' || candidate.fileName.toLowerCase().includes(searchExp.toLowerCase());
 
-    return matchCargo && matchZone && matchExp;
+    return matchClient && matchZone && matchExp;
   });
 
   return (
@@ -177,10 +176,10 @@ export default function Home() {
             className={`w-full h-10 rounded-lg flex items-center px-3 transition-colors ${
               activeTab === 'busqueda' ? 'bg-[#8cb800] text-white font-bold' : 'text-slate-300 hover:bg-slate-700/60'
             }`}
-            title="Búsqueda & Match"
+            title="Match por Empresa"
           >
-            <span className="text-base min-w-[24px] text-center">🔍</span>
-            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Búsqueda & Match</span>}
+            <span className="text-base min-w-[24px] text-center">🏢</span>
+            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Match por Empresa</span>}
           </button>
 
           <button
@@ -192,17 +191,6 @@ export default function Home() {
           >
             <span className="text-base min-w-[24px] text-center">👤</span>
             {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Base de CVs ({candidates.length})</span>}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('manual')}
-            className={`w-full h-10 rounded-lg flex items-center px-3 transition-colors ${
-              activeTab === 'manual' ? 'bg-[#8cb800] text-white font-bold' : 'text-slate-300 hover:bg-slate-700/60'
-            }`}
-            title="Manual de Cargos"
-          >
-            <span className="text-base min-w-[24px] text-center">🏷</span>
-            {!isSidebarCollapsed && <span className="text-xs ml-3 truncate">Manual de Cargos</span>}
           </button>
 
           <button
@@ -247,7 +235,7 @@ export default function Home() {
             <div className="font-extrabold text-2xl tracking-tight text-white flex items-center">
               <span>aglh</span>
               <span className="text-[10px] font-normal tracking-normal ml-2 hidden sm:inline-block border-l border-white/40 pl-2 uppercase">
-                Base de Datos & Abastecimiento Preventivo
+                Base de Datos — Match Directo por Empresa Cliente
               </span>
             </div>
           </div>
@@ -262,34 +250,48 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Bar Superior de Estado de la Banco de Talentos */}
+        {/* Bar Superior */}
         <div className="bg-white border-b border-slate-200 px-8 py-2.5 flex justify-between items-center text-xs text-slate-600">
           <div className="flex space-x-8">
-            <div>Total CVs Indexados: <strong className="text-slate-900">{candidates.length}</strong></div>
-            <div>Compatibles Activos: <strong className="text-[#8cb800]">{candidatesMatch.length}</strong></div>
+            <div>Total CVs Registrados: <strong className="text-slate-900">{candidates.length}</strong></div>
+            <div>Compatibles Filtrados: <strong className="text-[#8cb800]">{candidatesMatch.length}</strong></div>
           </div>
           <span className="text-slate-400 text-[11px]">Servicios Humanos Integrales</span>
         </div>
 
         <main className="p-8 max-w-6xl mx-auto w-full">
           
-          {/* VISTA 1: BÚSQUEDA Y MATCH POR ZONA Y EXPERIENCIA (🔍) */}
+          {/* VISTA 1: BÚSQUEDA Y MATCH POR EMPRESA CLIENTE (🏢) */}
           {activeTab === 'busqueda' && (
             <div className="space-y-6">
               <div className="text-center max-w-2xl mx-auto mb-6">
-                <h2 className="text-2xl font-light text-slate-700">Filtro de Compatibilidad de Talentos</h2>
+                <h2 className="text-2xl font-light text-slate-700">Compatibilidad Candidato — Empresa Cliente</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Encontrá rápidamente candidatos según su zona de residencia, experiencia comprobada y especialidad laboral.
+                  Filtrá y evaluá la compatibilidad de los postulantes con cada empresa cliente según su zona geográfica y trayectoria laboral.
                 </p>
               </div>
 
-              {/* Panel de Filtros Inteligentes */}
+              {/* Panel de Filtros por Empresa, Zona y Experiencia */}
               <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Zona / Lugar de residencia</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Empresa Cliente Target</label>
+                  <select
+                    value={selectedClientFilter}
+                    onChange={(e) => setSelectedClientFilter(e.target.value)}
+                    className="w-full border border-slate-300 rounded p-2 text-xs focus:outline-none focus:border-[#8cb800]"
+                  >
+                    <option value="">Todas las Empresas Clientes</option>
+                    {allClients.map((clientName, idx) => (
+                      <option key={idx} value={clientName}>{clientName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Zona / Barrio de residencia</label>
                   <input
                     type="text"
-                    placeholder="Ej: Montevideo, Paso Carrasco, Canelones..."
+                    placeholder="Ej: Paso Carrasco, Centro, Canelones..."
                     value={searchZone}
                     onChange={(e) => setSearchZone(e.target.value)}
                     className="w-full border border-slate-300 rounded p-2 text-xs focus:outline-none focus:border-[#8cb800]"
@@ -297,35 +299,21 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Experiencia / Palabra Clave</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Experiencia / Tarea Relevante</label>
                   <input
                     type="text"
-                    placeholder="Ej: Depósito, Operario, Limpieza, Ventas..."
+                    placeholder="Ej: Depósito, Manejo de autoelevador, Limpieza..."
                     value={searchExp}
                     onChange={(e) => setSearchExp(e.target.value)}
                     className="w-full border border-slate-300 rounded p-2 text-xs focus:outline-none focus:border-[#8cb800]"
                   />
                 </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Cargo Objetivo</label>
-                  <select
-                    value={selectedCargoFilter}
-                    onChange={(e) => setSelectedCargoFilter(e.target.value)}
-                    className="w-full border border-slate-300 rounded p-2 text-xs focus:outline-none focus:border-[#8cb800]"
-                  >
-                    <option value="">Todos los cargos</option>
-                    {MANUAL_CARGOS_BASE.map(cargo => (
-                      <option key={cargo.id} value={cargo.title}>{cargo.title}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
-              {/* Resultados de Coincidencia */}
+              {/* Lista de Resultados */}
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                 <h3 className="text-xs font-bold text-slate-700 mb-3 uppercase tracking-wider">
-                  Candidatos Compatibles ({candidatesMatch.length})
+                  Candidatos Evaluados ({candidatesMatch.length})
                 </h3>
 
                 {candidatesMatch.length > 0 ? (
@@ -342,19 +330,26 @@ export default function Home() {
                             {candidate.status}
                           </span>
                         </div>
-                        <p className="text-xs text-[#8cb800] font-semibold mt-1">{candidate.position}</p>
                         <p className="text-xs text-slate-500 mt-2">
-                          <strong>Tel:</strong> <span className="font-mono">{candidate.phone}</span>
+                          <strong>Teléfono:</strong> <span className="font-mono">{candidate.phone}</span>
                         </p>
-                        <div className="mt-3 pt-2 border-t border-slate-200/60 flex justify-between items-center text-[11px] text-slate-500">
-                          <span>📄 {candidate.fileName}</span>
+
+                        <div className="mt-3 pt-2 border-t border-slate-200/60">
+                          <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Empresas Compatibles:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {candidate.matchedOperativas?.map((cliente, i) => (
+                              <span key={i} className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded border border-emerald-200 font-semibold">
+                                {cliente}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-slate-400 text-xs">
-                    No se encontraron perfiles que coincidan con los filtros aplicados o no se han cargado CVs aún.
+                    No hay perfiles ingresados o ninguno coincide con la empresa/zona filtrada.
                   </div>
                 )}
               </div>
@@ -365,7 +360,7 @@ export default function Home() {
           {activeTab === 'candidates' && (
             <div className="space-y-6">
               <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
-                Base General de CVs Procesados
+                Base General de CVs Registrados
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -376,51 +371,31 @@ export default function Home() {
                     className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm hover:border-[#8cb800] cursor-pointer transition-colors"
                   >
                     <h4 className="font-bold text-xs text-slate-800">{candidate.name}</h4>
-                    <p className="text-xs text-[#8cb800] font-semibold mt-1">{candidate.position}</p>
                     <p className="text-xs text-slate-500 font-mono mt-1">{candidate.phone}</p>
-                    <p className="text-[10px] text-slate-400 mt-2">Ingresado: {candidate.date}</p>
+                    <p className="text-[10px] text-slate-400 mt-2">Documento: {candidate.fileName}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* VISTA 3: MANUAL DE CARGOS (🏷) */}
-          {activeTab === 'manual' && (
-            <div className="space-y-6">
-              <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
-                Manual de Cargos
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {MANUAL_CARGOS_BASE.map((cargo) => (
-                  <div key={cargo.id} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-[#8cb800]">
-                    <span className="text-[10px] font-bold text-[#8cb800] uppercase">Código {cargo.id}</span>
-                    <h3 className="font-bold text-slate-800 text-sm mt-1">{cargo.title}</h3>
-                    <p className="text-xs text-slate-600 mt-2 leading-relaxed">{cargo.funcion}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* VISTA 4: SOLICITUDES (✉) */}
+          {/* VISTA 3: SOLICITUDES (✉) */}
           {activeTab === 'solicitudes' && (
             <div className="space-y-6">
               <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
-                Solicitudes de Demanda de Clientes
+                Solicitudes Recibidas de Empresas Clientes
               </h2>
               <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm text-center">
-                <p className="text-sm text-slate-600">Bandeja para recibir solicitudes directas de empresas clientes.</p>
+                <p className="text-sm text-slate-600">Bandeja para requerimientos y especificaciones directo de los clientes.</p>
               </div>
             </div>
           )}
 
-          {/* VISTA 5: REPORTES (📊) */}
+          {/* VISTA 4: REPORTES (📊) */}
           {activeTab === 'reportes' && (
             <div className="space-y-6">
               <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
-                Estadísticas del Banco de CVs
+                Métricas de la Base de Datos
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
@@ -428,14 +403,14 @@ export default function Home() {
                   <p className="text-3xl font-bold text-[#8cb800] mt-1">{candidates.length}</p>
                 </div>
                 <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                  <p className="text-xs text-slate-500 uppercase font-semibold">Perfil más recurrente</p>
-                  <p className="text-xl font-bold text-slate-800 mt-1">Operario de Depósito / Logística</p>
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Empresas Clientes Activas</p>
+                  <p className="text-3xl font-bold text-slate-800 mt-1">{allClients.length}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* VISTA 6: CONFIGURACIÓN (⚙) */}
+          {/* VISTA 5: CONFIGURACIÓN (⚙) */}
           {activeTab === 'configuracion' && (
             <div className="space-y-6">
               <h2 className="text-center text-2xl font-light text-slate-700 mb-6">
@@ -443,8 +418,8 @@ export default function Home() {
               </h2>
               <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm max-w-lg mx-auto space-y-3 text-xs">
                 <div>
-                  <label className="font-semibold text-slate-700 block">Modo de Operación</label>
-                  <input type="text" value="Base de Datos y Match Preventivo" disabled className="w-full border border-slate-200 rounded p-2 bg-slate-50 mt-1" />
+                  <label className="font-semibold text-slate-700 block">Estrategia de Asignación</label>
+                  <input type="text" value="Match Geográfico y Experiencia por Empresa Cliente" disabled className="w-full border border-slate-200 rounded p-2 bg-slate-50 mt-1" />
                 </div>
               </div>
             </div>
@@ -460,23 +435,22 @@ export default function Home() {
             <div className="flex justify-between items-start border-b border-slate-100 pb-3 mb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-800">{selectedCandidate.name}</h3>
-                <p className="text-xs text-[#8cb800] font-semibold">{selectedCandidate.position}</p>
+                <p className="text-xs text-slate-500 font-mono mt-0.5">{selectedCandidate.phone}</p>
               </div>
               <button onClick={() => setSelectedCandidate(null)} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
             </div>
 
             <div className="space-y-2 text-xs">
-              <p><strong>Teléfono:</strong> <span className="font-mono">{selectedCandidate.phone}</span></p>
               <p><strong>Archivo CV:</strong> {selectedCandidate.fileName}</p>
-              <p><strong>Fecha de alta:</strong> {selectedCandidate.date}</p>
+              <p><strong>Fecha de Ingreso:</strong> {selectedCandidate.date}</p>
               
               {selectedCandidate.matchedOperativas && selectedCandidate.matchedOperativas.length > 0 && (
                 <div className="mt-3 pt-2 border-t border-slate-100">
-                  <p className="font-bold text-slate-700 mb-1">Cuentas/Clientes donde tiene alta compatibilidad:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedCandidate.matchedOperativas.map((c, i) => (
-                      <span key={i} className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded border border-emerald-200">
-                        {c}
+                  <p className="font-bold text-slate-700 mb-1.5">Empresas clientes compatibles:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedCandidate.matchedOperativas.map((cliente, i) => (
+                      <span key={i} className="bg-emerald-50 text-emerald-800 text-[11px] px-2.5 py-1 rounded border border-emerald-200 font-semibold">
+                        🏢 {cliente}
                       </span>
                     ))}
                   </div>
