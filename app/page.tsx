@@ -2,16 +2,6 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { 
-  Users, 
-  Search, 
-  Upload,
-  BookOpen,
-  Building2,
-  PhoneCall,
-  UserCheck,
-  Filter
-} from '../types'; // Mantenemos importaciones directas
 import { Candidate, CandidateStatus, GrupoOperativa } from '../types';
 import { OPERATIVAS_BASE, MANUAL_CARGOS_BASE } from '../data/mockData';
 
@@ -23,6 +13,10 @@ export default function Home() {
   const [manualSearchTerm, setManualSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('TODOS');
   
+  // Estado para Drag & Drop y Modal
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+
   const [operativas, setOperativas] = useState<GrupoOperativa[]>(OPERATIVAS_BASE);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   
@@ -32,8 +26,7 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+  const processFiles = (files: FileList | File[]) => {
     if (files && files.length > 0) {
       const newCandidates: Candidate[] = [];
       const updatedOperativas = [...operativas];
@@ -75,18 +68,44 @@ export default function Home() {
 
       setCandidates((prev) => [...newCandidates, ...prev]);
       setOperativas(updatedOperativas);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      processFiles(event.target.files);
       event.target.value = '';
     }
   };
 
-  // Cambiar estado de un candidato individual
+  // Manejo de Drag & Drop Global
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
+    }
+  };
+
   const handleStatusChange = (candidateId: string, newStatus: CandidateStatus) => {
     setCandidates((prev) =>
       prev.map((c) => (c.id === candidateId ? { ...c, status: newStatus } : c))
     );
+    if (selectedCandidate && selectedCandidate.id === candidateId) {
+      setSelectedCandidate((prev) => prev ? { ...prev, status: newStatus } : null);
+    }
   };
 
-  // Helper de estilos por estado
   const getStatusBadgeStyle = (status: CandidateStatus) => {
     switch (status) {
       case 'NUEVO':
@@ -102,21 +121,24 @@ export default function Home() {
     }
   };
 
-  // Filtrado de cargos por palabra clave
   const filteredCargos = MANUAL_CARGOS_BASE.filter(cargo => 
     cargo.title.toLowerCase().includes(manualSearchTerm.toLowerCase()) ||
     cargo.funcion.toLowerCase().includes(manualSearchTerm.toLowerCase()) ||
     cargo.id.includes(manualSearchTerm)
   );
 
-  // Filtrado de candidatos por estado
   const filteredCandidates = candidates.filter(candidate => {
     if (statusFilter === 'TODOS') return true;
     return candidate.status === statusFilter;
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
+    <div 
+      className="min-h-screen bg-slate-50 text-slate-800 relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -125,6 +147,16 @@ export default function Home() {
         multiple 
         className="hidden" 
       />
+
+      {/* Superposición visual para Drag & Drop */}
+      {isDragging && (
+        <div className="fixed inset-0 bg-blue-600/10 backdrop-blur-sm border-4 border-dashed border-blue-500 z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-white p-6 rounded-2xl shadow-xl text-center border border-blue-100">
+            <p className="text-lg font-bold text-slate-900">Suelta los archivos aquí</p>
+            <p className="text-xs text-slate-500 mt-1">Soporta documentos PDF, DOC y DOCX</p>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
@@ -142,35 +174,35 @@ export default function Home() {
           <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
               onClick={() => setActiveTab('operativas')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
                 activeTab === 'operativas' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'
               }`}
             >
-              <span>Operativas</span>
+              Operativas
             </button>
             <button
               onClick={() => setActiveTab('manual')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
                 activeTab === 'manual' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'
               }`}
             >
-              <span>Manual de Cargos</span>
+              Manual de Cargos
             </button>
             <button
               onClick={() => setActiveTab('candidates')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
                 activeTab === 'candidates' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'
               }`}
             >
-              <span>Candidatos ({candidates.length})</span>
+              Candidatos ({candidates.length})
             </button>
           </div>
           
           <button 
             onClick={handleUploadClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors shadow-sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
-            <span>Cargar CVs</span>
+            Cargar CVs
           </button>
         </div>
       </header>
@@ -189,8 +221,8 @@ export default function Home() {
                   className="w-full pl-4 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div className="text-xs text-slate-500 flex items-center gap-2">
-                <span>Abastecimiento dinámico basado en lectura de CVs</span>
+              <div className="text-xs text-slate-500">
+                Abastecimiento dinámico basado en lectura de CVs
               </div>
             </div>
 
@@ -302,12 +334,17 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {filteredCandidates.length > 0 ? (
                 filteredCandidates.map((candidate) => (
-                  <div key={candidate.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <div 
+                    key={candidate.id} 
+                    onClick={() => setSelectedCandidate(candidate)}
+                    className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-blue-400 cursor-pointer transition-all hover:shadow-md"
+                  >
                     <div>
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-bold text-slate-900 text-sm">{candidate.name}</h4>
                         <select
                           value={candidate.status}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => handleStatusChange(candidate.id, e.target.value as CandidateStatus)}
                           className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getStatusBadgeStyle(candidate.status)} focus:outline-none cursor-pointer`}
                         >
@@ -344,6 +381,68 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Modal Detalle de Candidato */}
+      {selectedCandidate && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl p-6">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getStatusBadgeStyle(selectedCandidate.status)}`}>
+                  {selectedCandidate.status}
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">{selectedCandidate.name}</h3>
+                <p className="text-xs text-blue-600 font-medium">{selectedCandidate.position}</p>
+              </div>
+              <button 
+                onClick={() => setSelectedCandidate(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <span className="text-slate-400 font-medium block">Teléfono de Contacto:</span>
+                <p className="text-slate-800 font-mono text-sm mt-0.5">{selectedCandidate.phone}</p>
+              </div>
+
+              <div>
+                <span className="text-slate-400 font-medium block">Archivo Adjunto:</span>
+                <p className="text-slate-700 font-mono mt-0.5 bg-slate-50 p-2 rounded border border-slate-200">
+                  {selectedCandidate.fileName}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-slate-400 font-medium block">Fecha de Carga:</span>
+                <p className="text-slate-700 mt-0.5">{selectedCandidate.date}</p>
+              </div>
+
+              <div>
+                <span className="text-slate-400 font-medium block mb-1">Operativas Emparejadas:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedCandidate.matchedOperativas.map((op, idx) => (
+                    <span key={idx} className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-1 rounded-md font-medium">
+                      {op}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setSelectedCandidate(null)}
+                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-medium text-xs transition-colors"
+              >
+                Cerrar Ficha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
