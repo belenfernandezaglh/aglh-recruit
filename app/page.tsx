@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicialización directa del cliente de Supabase
+// Inicialización del cliente de Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -62,7 +62,6 @@ export default function Home() {
   const [newClientName, setNewClientName] = useState('');
   const [newClientExecutive, setNewClientExecutive] = useState('');
 
-  // Verificación de sesión y carga de datos
   useEffect(() => {
     checkSession();
   }, []);
@@ -93,7 +92,7 @@ export default function Home() {
       .order('name', { ascending: true });
     if (clientData) setClients(clientData);
 
-    // Cargar Contactos (Módulo Contactados)
+    // Cargar Contactos
     const { data: contactData } = await supabase
       .from('contacts')
       .select('*, candidate:candidates(*), client:clients(*)')
@@ -106,7 +105,7 @@ export default function Home() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!authEmail.endsWith('@aglh.com.uy')) {
-      alert('Acceso restringido únicamente a correos @aglh.com.uy');
+      alert('Acceso restringido únicamente a direcciones corporativas @aglh.com.uy');
       return;
     }
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -126,10 +125,8 @@ export default function Home() {
     setUserSession(null);
   };
 
-  // Permisos habilitados
   const isAdmin = true;
 
-  // Manejo de Modal de Contacto
   const openContactModal = (candidate: Candidate) => {
     setSelectedCandidate(candidate);
     setSelectedClientId(clients.length > 0 ? clients[0].id : '');
@@ -143,18 +140,14 @@ export default function Home() {
   };
 
   const handleConfirmContact = async (result: ContactResult) => {
-    if (!selectedCandidate) {
-      alert('Ocurrió un error: No hay candidato seleccionado.');
-      return;
-    }
+    if (!selectedCandidate) return;
     if (!selectedClientId) {
-      alert('Atención: Debes seleccionar un cliente de la lista desplegable.');
+      alert('Debes seleccionar un cliente.');
       return;
     }
 
     const recruiterEmail = userSession?.user?.email || userSession?.email || 'belen.fernandez@aglh.com.uy';
 
-    // 1. Guardar en la tabla contacts
     const { error: insertError } = await supabase.from('contacts').insert([
       {
         candidate_id: selectedCandidate.id,
@@ -166,27 +159,19 @@ export default function Home() {
     ]);
 
     if (insertError) {
-      alert(`Error al registrar interacción: ${insertError.message}`);
-      console.error(insertError);
+      alert(`Error al guardar: ${insertError.message}`);
       return;
     }
 
-    // 2. Actualizar estado del candidato
-    const { error: updateError } = await supabase
+    await supabase
       .from('candidates')
       .update({ status: 'CONTACTADO' })
       .eq('id', selectedCandidate.id);
 
-    if (updateError) {
-      alert(`Aviso: Se guardó el contacto pero no se cambió el estado del candidato: ${updateError.message}`);
-    }
-
-    alert('¡Candidato registrado en Contactados exitosamente!');
     closeContactModal();
     await loadAllData();
   };
 
-  // Guardar nuevo cliente
   const handleCreateClient = async () => {
     if (!newClientName) {
       alert('Ingresa el nombre de la empresa.');
@@ -209,7 +194,6 @@ export default function Home() {
     }
   };
 
-  // Reasignar ejecutivo de cliente
   const handleUpdateExecutive = async (clientId: string, newEmail: string) => {
     const { error } = await supabase
       .from('clients')
@@ -223,160 +207,201 @@ export default function Home() {
     }
   };
 
-  // Login View
+  // --- VISTA DE LOGIN (Estética AGLH) ---
   if (!userSession) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'sans-serif' }}>
-        <div style={{ backgroundColor: '#1e293b', padding: '40px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', color: '#fff' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center', color: '#38bdf8' }}>Acceso ATS Enterprise</h2>
-          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '24px', textAlign: 'center' }}>Ingresa tus credenciales corporativas</p>
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: '"System-UI", -apple-system, sans-serif' }}>
+        <div style={{ backgroundColor: '#ffffff', padding: '40px', borderRadius: '12px', width: '100%', maxWidth: '420px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <h1 style={{ color: '#0f2942', fontSize: '26px', fontWeight: '800', letterSpacing: '-0.5px', margin: '0 0 6px 0' }}>AGLH <span style={{ color: '#00a896', fontWeight: '400' }}>Consultores</span></h1>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: 0, fontWeight: '500' }}>Gestión de Selección & Selección de Personal</p>
+          </div>
+          
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>Correo Corporativo</label>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>Correo Electrónico</label>
               <input
                 type="email"
-                placeholder="usuario@aglh.com.uy"
+                placeholder="ejemplo@aglh.com.uy"
                 value={authEmail}
                 onChange={(e) => setAuthEmail(e.target.value)}
                 required
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '14px', color: '#0f172a', boxSizing: 'border-box', outline: 'none' }}
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>Contraseña</label>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>Contraseña</label>
               <input
                 type="password"
                 placeholder="••••••••"
                 value={authPassword}
                 onChange={(e) => setAuthPassword(e.target.value)}
                 required
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '14px', color: '#0f172a', boxSizing: 'border-box', outline: 'none' }}
               />
             </div>
             <button
               type="submit"
-              style={{ marginTop: '10px', backgroundColor: '#0284c7', color: '#fff', padding: '12px', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ marginTop: '8px', backgroundColor: '#0f2942', color: '#ffffff', padding: '12px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'background-color 0.2s' }}
             >
-              Iniciar Sesión
+              Ingresar al Portal
             </button>
           </form>
+          <div style={{ marginTop: '24px', textAlign: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>© AGLH Consultores. Todos los derechos reservados.</span>
+          </div>
         </div>
       </div>
     );
   }
 
+  // --- VISTA PRINCIPAL (Estética AGLH) ---
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', color: '#0f172a', fontFamily: 'sans-serif' }}>
-      {/* Header */}
-      <header style={{ backgroundColor: '#0f172a', color: '#fff', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>ATS Enterprise — Panel de Control</h1>
-          <span style={{ fontSize: '12px', color: '#38bdf8' }}>AGLH Consultores</span>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', color: '#0f172a', fontFamily: '"System-UI", -apple-system, sans-serif' }}>
+      
+      {/* Header AGLH */}
+      <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: '800', margin: 0, color: '#0f2942', letterSpacing: '-0.5px' }}>
+            AGLH <span style={{ color: '#00a896', fontWeight: '400' }}>Consultores</span>
+          </h1>
+          <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '11px', fontWeight: '700', padding: '3px 8px', borderRadius: '12px', textTransform: 'uppercase' }}>
+            Portal ATS
+          </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontSize: '14px', color: '#cbd5e1' }}>{userSession?.user?.email || userSession?.email}</span>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#0f2942' }}>{userSession?.user?.email || userSession?.email}</span>
+            <span style={{ fontSize: '11px', color: '#64748b' }}>Consultor / Reclutador</span>
+          </div>
           <button
             onClick={handleLogout}
-            style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
+            style={{ backgroundColor: '#fff', color: '#dc2626', border: '1px solid #fecaca', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
           >
             Cerrar Sesión
           </button>
         </div>
       </header>
 
-      {/* Navegación Pestañas */}
-      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '0 32px', display: 'flex', gap: '24px' }}>
+      {/* Navegación por pestañas */}
+      <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0 40px', display: 'flex', gap: '32px' }}>
         <button
           onClick={() => setActiveTab('NUEVOS')}
-          style={{ padding: '16px 0', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', borderBottom: activeTab === 'NUEVOS' ? '3px solid #0284c7' : 'none', color: activeTab === 'NUEVOS' ? '#0284c7' : '#64748b' }}
+          style={{
+            padding: '16px 0', border: 'none', background: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '14px',
+            borderBottom: activeTab === 'NUEVOS' ? '3px solid #00a896' : '3px solid transparent',
+            color: activeTab === 'NUEVOS' ? '#0f2942' : '#64748b'
+          }}
         >
           Candidatos Nuevos ({candidates.filter(c => c.status === 'NUEVO').length})
         </button>
         <button
           onClick={() => setActiveTab('CONTACTADOS')}
-          style={{ padding: '16px 0', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', borderBottom: activeTab === 'CONTACTADOS' ? '3px solid #0284c7' : 'none', color: activeTab === 'CONTACTADOS' ? '#0284c7' : '#64748b' }}
+          style={{
+            padding: '16px 0', border: 'none', background: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '14px',
+            borderBottom: activeTab === 'CONTACTADOS' ? '3px solid #00a896' : '3px solid transparent',
+            color: activeTab === 'CONTACTADOS' ? '#0f2942' : '#64748b'
+          }}
         >
           Módulo Contactados ({contacts.length})
         </button>
         <button
           onClick={() => setActiveTab('CLIENTES')}
-          style={{ padding: '16px 0', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', borderBottom: activeTab === 'CLIENTES' ? '3px solid #0284c7' : 'none', color: activeTab === 'CLIENTES' ? '#0284c7' : '#64748b' }}
+          style={{
+            padding: '16px 0', border: 'none', background: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '14px',
+            borderBottom: activeTab === 'CLIENTES' ? '3px solid #00a896' : '3px solid transparent',
+            color: activeTab === 'CLIENTES' ? '#0f2942' : '#64748b'
+          }}
         >
           Gestión de Clientes ({clients.length})
         </button>
       </div>
 
-      {/* Main Content */}
-      <main style={{ padding: '32px' }}>
+      {/* Contenido Principal */}
+      <main style={{ padding: '36px 40px', maxWidth: '1400px', margin: '0 auto' }}>
         {loading ? (
-          <p style={{ textAlign: 'center', color: '#64748b' }}>Cargando información...</p>
+          <p style={{ textAlign: 'center', color: '#64748b', fontSize: '14px' }}>Cargando datos del sistema...</p>
         ) : (
           <>
-            {/* NUEVOS */}
+            {/* PESTAÑA: NUEVOS CANDIDATOS */}
             {activeTab === 'NUEVOS' && (
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Candidatos Disponibles para Gestión</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0f2942', margin: '0 0 4px 0' }}>Postulantes Ingresados</h2>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Candidatos registrados pendientes de primer contacto corporativo.</p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
                   {candidates.filter(c => c.status === 'NUEVO').map((candidate) => (
-                    <div key={candidate.id} style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                      <h3 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>{candidate.first_name} {candidate.last_name}</h3>
-                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>📧 {candidate.email || 'Sin correo'}</p>
-                      <p style={{ margin: '4px 0 16px 0', fontSize: '13px', color: '#64748b' }}>📞 {candidate.phone || 'Sin teléfono'}</p>
+                    <div key={candidate.id} style={{ backgroundColor: '#ffffff', borderRadius: '10px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f2942' }}>{candidate.first_name} {candidate.last_name}</h3>
+                        <span style={{ backgroundColor: '#f1f5f9', color: '#475569', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px' }}>Nuevo</span>
+                      </div>
+                      <p style={{ margin: '6px 0', fontSize: '13px', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>✉ {candidate.email || 'Sin correo registrado'}</p>
+                      <p style={{ margin: '6px 0 20px 0', fontSize: '13px', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>📞 {candidate.phone || 'Sin teléfono'}</p>
                       <button
                         onClick={() => openContactModal(candidate)}
-                        style={{ width: '100%', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                        style={{ width: '100%', backgroundColor: '#0f2942', color: '#ffffff', border: 'none', padding: '11px', borderRadius: '6px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
                       >
-                        📞 Contactar
+                        Registrar Contacto
                       </button>
                     </div>
                   ))}
                   {candidates.filter(c => c.status === 'NUEVO').length === 0 && (
-                    <p style={{ color: '#64748b' }}>No hay candidatos nuevos pendientes.</p>
+                    <div style={{ backgroundColor: '#fff', padding: '32px', borderRadius: '8px', border: '1px dashed #cbd5e1', textAlign: 'center', gridColumn: '1 / -1' }}>
+                      <p style={{ color: '#64748b', margin: 0 }}>No hay candidatos nuevos pendientes en este momento.</p>
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* CONTACTADOS */}
+            {/* PESTAÑA: CONTACTADOS */}
             {activeTab === 'CONTACTADOS' && (
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Histórico de Interacciones</h2>
-                <div style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0f2942', margin: '0 0 4px 0' }}>Módulo de Interacciones & Gestión</h2>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Historial completo de contactos realizados por los consultores de AGLH.</p>
+                </div>
+
+                <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-                    <thead style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                    <thead style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                       <tr>
-                        <th style={{ padding: '12px 16px' }}>Candidato</th>
-                        <th style={{ padding: '12px 16px' }}>Cliente</th>
-                        <th style={{ padding: '12px 16px' }}>Reclutador</th>
-                        <th style={{ padding: '12px 16px' }}>Resultado</th>
-                        <th style={{ padding: '12px 16px' }}>Notas</th>
+                        <th style={{ padding: '14px 20px', fontWeight: '700', color: '#0f2942' }}>Candidato</th>
+                        <th style={{ padding: '14px 20px', fontWeight: '700', color: '#0f2942' }}>Cliente / Empresa</th>
+                        <th style={{ padding: '14px 20px', fontWeight: '700', color: '#0f2942' }}>Reclutador AGLH</th>
+                        <th style={{ padding: '14px 20px', fontWeight: '700', color: '#0f2942' }}>Resultado</th>
+                        <th style={{ padding: '14px 20px', fontWeight: '700', color: '#0f2942' }}>Observaciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {contacts.map((item) => (
                         <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '12px 16px', fontWeight: 'bold' }}>
-                            {item.candidate ? `${item.candidate.first_name} ${item.candidate.last_name}` : 'Candidato no disponible'}
+                          <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0f2942' }}>
+                            {item.candidate ? `${item.candidate.first_name} ${item.candidate.last_name}` : 'N/D'}
                           </td>
-                          <td style={{ padding: '12px 16px' }}>
-                            {item.client ? item.client.name : 'Cliente no asignado'}
+                          <td style={{ padding: '14px 20px', color: '#334155' }}>
+                            {item.client ? item.client.name : 'Sin Empresa'}
                           </td>
-                          <td style={{ padding: '12px 16px', color: '#64748b' }}>{item.recruiter_email}</td>
-                          <td style={{ padding: '12px 16px' }}>
+                          <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{item.recruiter_email}</td>
+                          <td style={{ padding: '14px 20px' }}>
                             <span style={{
-                              padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold',
+                              padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700',
                               backgroundColor: item.result === 'INGRESO' ? '#dcfce7' : '#fee2e2',
-                              color: item.result === 'INGRESO' ? '#166534' : '#991b1b'
+                              color: item.result === 'INGRESO' ? '#15803d' : '#b91c1c'
                             }}>
                               {item.result === 'INGRESO' ? '✓ Ingresó' : '✕ No Ingresó'}
                             </span>
                           </td>
-                          <td style={{ padding: '12px 16px', color: '#64748b' }}>{item.notes || '-'}</td>
+                          <td style={{ padding: '14px 20px', color: '#64748b', fontSize: '13px' }}>{item.notes || '-'}</td>
                         </tr>
                       ))}
                       {contacts.length === 0 && (
                         <tr>
-                          <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Aún no hay interacciones registradas.</td>
+                          <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>Aún no existen registros de contactos en el histórico.</td>
                         </tr>
                       )}
                     </tbody>
@@ -385,31 +410,34 @@ export default function Home() {
               </div>
             )}
 
-            {/* CLIENTES */}
+            {/* PESTAÑA: CLIENTES */}
             {activeTab === 'CLIENTES' && (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>Empresas y Ejecutivos Asignados</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <div>
+                    <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0f2942', margin: '0 0 4px 0' }}>Directorio de Empresas Clientes</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Asignación de ejecutivos responsables por cada cuenta cliente.</p>
+                  </div>
                   {isAdmin && (
                     <button
                       onClick={() => setIsNewClientModalOpen(true)}
-                      style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                      style={{ backgroundColor: '#00a896', color: '#ffffff', border: 'none', padding: '10px 18px', borderRadius: '6px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
                     >
-                      + Crear Nuevo Cliente
+                      + Nueva Empresa
                     </button>
                   )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
                   {clients.map((client) => (
-                    <div key={client.id} style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '20px', border: '1px solid #e2e8f0' }}>
-                      <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#0f172a' }}>🏢 {client.name}</h3>
-                      <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Ejecutivo de Cuenta:</label>
+                    <div key={client.id} style={{ backgroundColor: '#ffffff', borderRadius: '10px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                      <h3 style={{ margin: '0 0 14px 0', fontSize: '16px', fontWeight: '700', color: '#0f2942' }}>🏢 {client.name}</h3>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>Ejecutivo AGLH a cargo:</label>
                       <input
                         type="email"
                         value={client.executive_email}
                         onChange={(e) => handleUpdateExecutive(client.id, e.target.value)}
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box' }}
                       />
                     </div>
                   ))}
@@ -420,24 +448,25 @@ export default function Home() {
         )}
       </main>
 
-      {/* MODAL CONTACTAR */}
+      {/* MODAL REGISTRAR CONTACTO */}
       {isContactModalOpen && selectedCandidate && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '12px', width: '100%', maxWidth: '480px', padding: '24px', position: 'relative' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '500px', padding: '28px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', position: 'relative' }}>
             <button
               onClick={closeContactModal}
-              style={{ position: 'absolute', top: '16px', right: '16px', border: 'none', background: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+              style={{ position: 'absolute', top: '18px', right: '18px', border: 'none', background: 'none', fontSize: '18px', cursor: 'pointer', color: '#64748b' }}
             >
               ✕
             </button>
-            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>Registrar Gestión: {selectedCandidate.first_name} {selectedCandidate.last_name}</h3>
+            <h3 style={{ marginTop: 0, marginBottom: '4px', fontSize: '18px', color: '#0f2942', fontWeight: '700' }}>Gestión de Candidato</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#64748b' }}>{selectedCandidate.first_name} {selectedCandidate.last_name}</p>
 
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Seleccionar Cliente/Empresa *</label>
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>Seleccionar Cliente/Empresa *</label>
               <select
                 value={selectedClientId}
                 onChange={(e) => setSelectedClientId(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff', color: '#0f172a' }}
               >
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -445,27 +474,27 @@ export default function Home() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Observaciones / Notas</label>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>Observaciones del Reclutador</label>
               <textarea
                 rows={3}
-                placeholder="Escribe comentarios de la llamada..."
+                placeholder="Detalles del contacto o entrevista..."
                 value={contactNotes}
                 onChange={(e) => setContactNotes(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }}
               />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <button
                 onClick={() => handleConfirmContact('INGRESO')}
-                style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{ backgroundColor: '#15803d', color: '#ffffff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
               >
-                ✓ Ingresó
+                ✓ Confirmar Ingreso
               </button>
               <button
                 onClick={() => handleConfirmContact('NO_INGRESO')}
-                style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{ backgroundColor: '#dc2626', color: '#ffffff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
               >
                 ✕ No Ingresó
               </button>
@@ -474,49 +503,50 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL CLIENTE */}
+      {/* MODAL NUEVO CLIENTE */}
       {isNewClientModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '24px', position: 'relative' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '440px', padding: '28px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', position: 'relative' }}>
             <button
               onClick={() => setIsNewClientModalOpen(false)}
-              style={{ position: 'absolute', top: '16px', right: '16px', border: 'none', background: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+              style={{ position: 'absolute', top: '18px', right: '18px', border: 'none', background: 'none', fontSize: '18px', cursor: 'pointer', color: '#64748b' }}
             >
               ✕
             </button>
-            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>Crear Nuevo Cliente</h3>
+            <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '18px', color: '#0f2942', fontWeight: '700' }}>Registrar Nueva Empresa</h3>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Nombre de la Empresa</label>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>Nombre de la Empresa</label>
               <input
                 type="text"
                 placeholder="Ej. Kevenoll"
                 value={newClientName}
                 onChange={(e) => setNewClientName(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }}
               />
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Correo del Ejecutivo Asignado</label>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>Correo del Ejecutivo Asignado</label>
               <input
                 type="email"
                 placeholder="ejecutivo@aglh.com.uy"
                 value={newClientExecutive}
                 onChange={(e) => setNewClientExecutive(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }}
               />
             </div>
 
             <button
               onClick={handleCreateClient}
-              style={{ width: '100%', backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ width: '100%', backgroundColor: '#00a896', color: '#ffffff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}
             >
               Guardar Empresa
             </button>
           </div>
         </div>
       )}
+
     </div>
   );
 }
