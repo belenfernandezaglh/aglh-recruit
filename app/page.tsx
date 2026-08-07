@@ -2,29 +2,26 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Candidate, Client, ContactRecord, CandidateStatus, ContactResult } from '../types';
+import { Candidate, Client, ContactRecord, ContactResult } from '../types';
 import { supabase } from '../lib/supabase';
 import { parseCVAndMatch } from '../lib/aiParser';
 
-type ViewMode = 'clientes' | 'candidates' | 'contactados' | 'auditoria';
+type ViewMode = 'clientes' | 'candidates' | 'contactados';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('clientes');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Estados de datos
   const [clients, setClients] = useState<Client[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filtros
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLibretaH, setFilterLibretaH] = useState(false);
   const [filterHealthCard, setFilterHealthCard] = useState(false);
 
-  // Modales y drag & drop
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [contactModalCandidate, setContactModalCandidate] = useState<Candidate | null>(null);
   const [contactClientTarget, setContactClientTarget] = useState<string>('');
@@ -41,15 +38,14 @@ export default function Home() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // 1. Cargar Clientes
-      const { data: clientsData } = await supabase
+      const { data: clientsData, error: clientsErr } = await supabase
         .from('clients')
         .select('*')
         .order('name');
 
+      if (clientsErr) console.error('Error cargando clientes:', clientsErr.message);
       if (clientsData) setClients(clientsData);
 
-      // 2. Cargar Candidatos con sus Matches
       const { data: candidatesData } = await supabase
         .from('candidates')
         .select(`
@@ -63,7 +59,6 @@ export default function Home() {
 
       if (candidatesData) setCandidates(candidatesData as Candidate[]);
 
-      // 3. Cargar Contactados
       const { data: contactsData } = await supabase
         .from('contacts')
         .select(`
@@ -76,13 +71,12 @@ export default function Home() {
       if (contactsData) setContacts(contactsData as ContactRecord[]);
 
     } catch (err) {
-      console.error('Error al cargar datos:', err);
+      console.error('Error general:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Process subida de CVs (Importación Masiva + Deduplicación + IA)
   const processFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
     setUploadProgress(`Procesando 0/${files.length} CVs...`);
@@ -96,7 +90,6 @@ export default function Home() {
 
       const { candidateData, matches } = parseCVAndMatch(file, clients);
 
-      // Verificar si ya existe candidato (por documento o email)
       const { data: existing } = await supabase
         .from('candidates')
         .select('id')
@@ -106,7 +99,6 @@ export default function Home() {
       let candidateId: string;
 
       if (existing) {
-        // Actualizar existente (Sin duplicar)
         const { data: updated } = await supabase
           .from('candidates')
           .update({ ...candidateData, updated_at: new Date().toISOString() })
@@ -115,21 +107,16 @@ export default function Home() {
           .single();
         candidateId = updated.id;
       } else {
-        // Crear nuevo candidato
         const { data: inserted, error: insertErr } = await supabase
           .from('candidates')
           .insert([candidateData])
           .select()
           .single();
 
-        if (insertErr || !inserted) {
-          console.error('Error al insertar candidato:', insertErr);
-          continue;
-        }
+        if (insertErr || !inserted) continue;
         candidateId = inserted.id;
       }
 
-      // Guardar matches con clientes
       if (matches.length > 0) {
         const matchesToInsert = matches.map(m => ({
           candidate_id: candidateId,
@@ -141,14 +128,6 @@ export default function Home() {
           .from('candidate_client_matches')
           .upsert(matchesToInsert, { onConflict: 'candidate_id,client_id' });
       }
-
-      // Registro de Auditoría
-      await supabase.from('audit_logs').insert([{
-        user_email: 'reclutador@aglh.com.uy',
-        action: existing ? 'CANDIDATO_ACTUALIZADO' : 'CANDIDATO_CREADO',
-        candidate_id: candidateId,
-        details: { file_name: file.name }
-      }]);
     }
 
     setUploadProgress(null);
@@ -162,12 +141,10 @@ export default function Home() {
     }
   };
 
-  // Transición de Candidato a "CONTACTADO" (Desvinculación automática)
   const handleConfirmContact = async (result: ContactResult) => {
     if (!contactModalCandidate || !contactClientTarget) return;
 
-    // 1. Crear registro en tabla de contactos
-    const { error: contactErr } = await supabase.from('contacts').insert([{
+    await supabase.from('contacts').insert([{
       candidate_id: contactModalCandidate.id,
       client_id: contactClientTarget,
       recruiter_email: 'reclutador@aglh.com.uy',
@@ -176,24 +153,10 @@ export default function Home() {
       notes: contactNotes
     }]);
 
-    if (contactErr) {
-      alert(`Error al registrar contacto: ${contactErr.message}`);
-      return;
-    }
-
-    // 2. Actualizar estado a CONTACTADO (El trigger de Supabase elimina matches automáticamente)
     await supabase
       .from('candidates')
       .update({ status: 'CONTACTADO' })
       .eq('id', contactModalCandidate.id);
-
-    // 3. Auditoría
-    await supabase.from('audit_logs').insert([{
-      user_email: 'reclutador@aglh.com.uy',
-      action: 'CANDIDATO_CONTACTADO',
-      candidate_id: contactModalCandidate.id,
-      details: { client_id: contactClientTarget, result }
-    }]);
 
     setContactModalCandidate(null);
     setContactNotes('');
@@ -209,29 +172,19 @@ export default function Home() {
     if (selectedCandidate?.id === candidateId) setSelectedCandidate(null);
 
     await supabase.from('candidates').delete().eq('id', candidateId);
-    await supabase.from('audit_logs').insert([{
-      user_email: 'reclutador@aglh.com.uy',
-      action: 'CANDIDATO_ELIMINADO',
-      candidate_id: candidateId
-    }]);
   };
 
-  // Filtrado de Candidatos en tiempo real (Búsqueda inteligente)
   const filteredCandidates = candidates.filter(candidate => {
-    // Filtro por estado
     if (activeTab === 'candidates' && candidate.status === 'CONTACTADO') return false;
 
-    // Filtro por Cliente Seleccionado
     if (selectedClientId) {
       const hasMatch = candidate.matches?.some(m => m.client_id === selectedClientId);
       if (!hasMatch) return false;
     }
 
-    // Filtro por Requisitos
     if (filterLibretaH && !candidate.libreta_h) return false;
     if (filterHealthCard && !candidate.health_card) return false;
 
-    // Buscador multicriterio (Texto)
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
       const matchName = candidate.full_name?.toLowerCase().includes(q);
@@ -240,13 +193,8 @@ export default function Home() {
       const matchSummary = candidate.ai_summary?.toLowerCase().includes(q);
       const matchDoc = candidate.document_id?.toLowerCase().includes(q);
       const matchLicense = candidate.driver_license?.toLowerCase().includes(q);
-      const matchExp = candidate.work_experience?.some(exp => 
-        exp.position.toLowerCase().includes(q) || 
-        exp.company.toLowerCase().includes(q) || 
-        exp.functions.toLowerCase().includes(q)
-      );
 
-      return matchName || matchLocality || matchDept || matchSummary || matchDoc || matchLicense || matchExp;
+      return matchName || matchLocality || matchDept || matchSummary || matchDoc || matchLicense;
     }
 
     return true;
@@ -260,7 +208,6 @@ export default function Home() {
     >
       <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.doc,.docx" multiple className="hidden" />
 
-      {/* Drag & Drop Feedback */}
       {isDragging && (
         <div className="fixed inset-0 bg-[#8cb800]/20 backdrop-blur-md border-4 border-dashed border-[#8cb800] z-50 flex items-center justify-center pointer-events-none">
           <div className="bg-white p-8 rounded-2xl shadow-2xl text-center border">
@@ -269,7 +216,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Progress Toast */}
       {uploadProgress && (
         <div className="fixed bottom-6 right-6 bg-[#1f2937] text-white px-5 py-3 rounded-xl shadow-2xl z-50 flex items-center space-x-3 text-xs font-semibold">
           <div className="animate-spin h-4 w-4 border-2 border-[#8cb800] border-t-transparent rounded-full"></div>
@@ -277,7 +223,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Sidebar Navigation */}
+      {/* Sidebar */}
       <aside className={`${isSidebarCollapsed ? 'w-16' : 'w-60'} bg-[#1f2937] text-white flex flex-col py-4 transition-all duration-300 shrink-0 border-r border-slate-800 z-30`}>
         <div className="px-4 pb-4 border-b border-slate-700/60 flex items-center justify-between">
           <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="w-9 h-9 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
@@ -288,7 +234,7 @@ export default function Home() {
         <nav className="flex-1 space-y-1.5 px-2 mt-4">
           <button onClick={() => { setActiveTab('clientes'); setSelectedClientId(''); }} className={`w-full h-11 rounded-lg flex items-center px-3 text-xs font-bold transition-all ${activeTab === 'clientes' ? 'bg-[#8cb800] text-white shadow-md' : 'text-slate-300 hover:bg-slate-800'}`}>
             <span className="text-base">🏢</span>
-            {!isSidebarCollapsed && <span className="ml-3">Gestión de Clientes</span>}
+            {!isSidebarCollapsed && <span className="ml-3">Gestión de Clientes ({clients.length})</span>}
           </button>
 
           <button onClick={() => { setActiveTab('candidates'); setSelectedClientId(''); }} className={`w-full h-11 rounded-lg flex items-center px-3 text-xs font-bold transition-all ${activeTab === 'candidates' ? 'bg-[#8cb800] text-white shadow-md' : 'text-slate-300 hover:bg-slate-800'}`}>
@@ -318,64 +264,68 @@ export default function Home() {
 
         <main className="p-8 max-w-7xl mx-auto w-full space-y-6">
 
-          {/* VISTA 1: CLIENTES */}
+          {/* VISTA 1: GESTIÓN DE CLIENTES */}
           {activeTab === 'clientes' && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold text-slate-800">Cuentas y Clientes Operativos</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {clients.map((client) => {
-                  const clientCandidates = candidates.filter(c => c.matches?.some(m => m.client_id === client.id));
-                  const nuevocount = clientCandidates.filter(c => c.status === 'NUEVO').length;
-                  const avgMatch = clientCandidates.length > 0 
-                    ? Math.round(clientCandidates.reduce((acc, curr) => acc + (curr.matches?.find(m => m.client_id === client.id)?.match_score || 0), 0) / clientCandidates.length)
-                    : 0;
-
-                  return (
-                    <div 
-                      key={client.id}
-                      onClick={() => { setSelectedClientId(client.id); setActiveTab('candidates'); }}
-                      className={`bg-white p-5 rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer border-l-4 ${selectedClientId === client.id ? 'border-l-[#8cb800] ring-2 ring-[#8cb800]/20' : 'border-l-slate-300'}`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-slate-900 text-base">{client.name}</h3>
-                        <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">{client.executive_email || 'Sin Asignar'}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-2 line-clamp-2">{client.target_profile || 'Perfil general de depósito y logística'}</p>
-
-                      <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t text-center">
-                        <div>
-                          <span className="block text-[10px] text-slate-400 font-semibold">TOTAL</span>
-                          <span className="text-sm font-extrabold text-slate-800">{clientCandidates.length}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] text-slate-400 font-semibold">NUEVOS</span>
-                          <span className="text-sm font-extrabold text-[#8cb800]">{nuevocount}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] text-slate-400 font-semibold">PROMEDIO %</span>
-                          <span className="text-sm font-extrabold text-blue-600">{avgMatch}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold text-slate-800">Gestión de Clientes ({clients.length})</h2>
               </div>
+
+              {loading ? (
+                <p className="text-center text-xs py-8 text-slate-400">Cargando base de clientes...</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {clients.map((client) => {
+                    const clientCandidates = candidates.filter(c => c.matches?.some(m => m.client_id === client.id));
+                    const nuevocount = clientCandidates.filter(c => c.status === 'NUEVO').length;
+                    const avgMatch = clientCandidates.length > 0 
+                      ? Math.round(clientCandidates.reduce((acc, curr) => acc + (curr.matches?.find(m => m.client_id === client.id)?.match_score || 0), 0) / clientCandidates.length)
+                      : 0;
+
+                    return (
+                      <div 
+                        key={client.id}
+                        onClick={() => { setSelectedClientId(client.id); setActiveTab('candidates'); }}
+                        className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer border-l-4 border-l-[#8cb800]"
+                      >
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-slate-900 text-base">{client.name}</h3>
+                          <span className="text-xs font-bold bg-slate-100 px-2.5 py-1 rounded text-slate-700">Resp: {client.executive_email}</span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t text-center">
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-semibold">TOTAL</span>
+                            <span className="text-sm font-extrabold text-slate-800">{clientCandidates.length}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-semibold">NUEVOS</span>
+                            <span className="text-sm font-extrabold text-[#8cb800]">{nuevocount}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-semibold">MATCH %</span>
+                            <span className="text-sm font-extrabold text-blue-600">{avgMatch}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
-          {/* VISTA 2: BASE DE CANDIDATOS CON BUSCADOR INTELIGENTE */}
+          {/* VISTA 2: BASE DE CANDIDATOS */}
           {(activeTab === 'candidates' || selectedClientId) && (
             <div className="space-y-6">
               
-              {/* Barra de Búsqueda Avanzada */}
               <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1">
                     <label className="text-xs font-bold text-slate-600 block mb-1">Buscador Inteligente Multicriterio</label>
                     <input 
                       type="text" 
-                      placeholder="Buscar por cargo, funciones, libreta, zona (ej: Elevadorista, Maldonado, SAP, Reposición)..." 
+                      placeholder="Buscar por cargo, funciones, libreta, zona..." 
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full border border-slate-300 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-[#8cb800] outline-none"
@@ -395,31 +345,25 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Chips de Filtros Rápidos */}
                 <div className="flex items-center space-x-4 pt-2 border-t border-slate-100 text-xs">
-                  <span className="font-bold text-slate-500">Requisitos directos:</span>
+                  <span className="font-bold text-slate-500">Filtros:</span>
                   <label className="flex items-center space-x-1.5 cursor-pointer">
                     <input type="checkbox" checked={filterLibretaH} onChange={(e) => setFilterLibretaH(e.target.checked)} className="rounded text-[#8cb800]" />
-                    <span>Libreta H (Autoelevador)</span>
+                    <span>Libreta H</span>
                   </label>
                   <label className="flex items-center space-x-1.5 cursor-pointer">
                     <input type="checkbox" checked={filterHealthCard} onChange={(e) => setFilterHealthCard(e.target.checked)} className="rounded text-[#8cb800]" />
-                    <span>Carné de Salud al día</span>
+                    <span>Carné de Salud</span>
                   </label>
                 </div>
               </div>
 
-              {/* Grid de Candidatos */}
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                    Candidatos Encontrados ({filteredCandidates.length})
-                  </h3>
-                </div>
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                  Candidatos ({filteredCandidates.length})
+                </h3>
 
-                {loading ? (
-                  <p className="text-center text-xs py-8 text-slate-400">Cargando base de datos relacional...</p>
-                ) : filteredCandidates.length > 0 ? (
+                {filteredCandidates.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredCandidates.map((candidate) => {
                       const topMatch = candidate.matches?.[0];
@@ -428,7 +372,7 @@ export default function Home() {
                         <div 
                           key={candidate.id} 
                           onClick={() => setSelectedCandidate(candidate)} 
-                          className="p-5 border border-slate-200 rounded-xl hover:border-[#8cb800] transition-all cursor-pointer bg-slate-50/50 flex flex-col justify-between shadow-xs hover:shadow-md"
+                          className="p-5 border border-slate-200 rounded-xl hover:border-[#8cb800] transition-all cursor-pointer bg-slate-50/50 flex flex-col justify-between"
                         >
                           <div>
                             <div className="flex justify-between items-start">
@@ -442,19 +386,13 @@ export default function Home() {
 
                             <p className="text-xs text-slate-500 mt-1 font-medium">{candidate.locality} ({candidate.department})</p>
                             <p className="text-xs text-slate-600 mt-2 line-clamp-2 italic bg-white p-2 rounded border border-slate-100">{candidate.ai_summary}</p>
-
-                            <div className="flex flex-wrap gap-1 mt-3">
-                              {candidate.libreta_h && <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">Libreta H</span>}
-                              {candidate.health_card && <span className="text-[9px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded">Carné Salud</span>}
-                              {candidate.food_handler_card && <span className="text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded">Manipulación</span>}
-                            </div>
                           </div>
 
                           <div className="mt-5 pt-3 border-t border-slate-200 flex justify-between items-center">
                             <button 
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setContactModalCandidate(candidate); }}
-                              className="bg-[#1f2937] hover:bg-black text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors"
+                              className="bg-[#1f2937] hover:bg-black text-white text-[11px] font-bold px-3 py-1.5 rounded-lg"
                             >
                               📞 Contactar
                             </button>
@@ -462,7 +400,7 @@ export default function Home() {
                             <button 
                               type="button" 
                               onClick={(e) => handleDeleteCandidate(e, candidate.id)}
-                              className="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1"
+                              className="text-red-500 hover:text-red-700 text-xs font-bold"
                             >
                               Eliminar
                             </button>
@@ -472,16 +410,16 @@ export default function Home() {
                     })}
                   </div>
                 ) : (
-                  <p className="text-center text-xs text-slate-400 py-10">No se encontraron candidatos con los criterios especificados.</p>
+                  <p className="text-center text-xs text-slate-400 py-10">No hay candidatos para mostrar.</p>
                 )}
               </div>
             </div>
           )}
 
-          {/* VISTA 3: MÓDULO CONTACTADOS */}
+          {/* VISTA 3: CONTACTADOS */}
           {activeTab === 'contactados' && (
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-              <h2 className="text-sm font-extrabold uppercase text-slate-700">Historial de Candidatos Contactados</h2>
+              <h2 className="text-sm font-extrabold uppercase text-slate-700">Historial de Contactados</h2>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
@@ -489,7 +427,6 @@ export default function Home() {
                     <tr className="bg-slate-100 border-b text-slate-600 font-bold">
                       <th className="p-3">Candidato</th>
                       <th className="p-3">Cliente</th>
-                      <th className="p-3">Reclutador</th>
                       <th className="p-3">Resultado</th>
                       <th className="p-3">Fecha</th>
                     </tr>
@@ -499,12 +436,9 @@ export default function Home() {
                       <tr key={contact.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold">{contact.candidate?.full_name || 'Desconocido'}</td>
                         <td className="p-3 font-semibold text-slate-700">{contact.client?.name || 'Gral'}</td>
-                        <td className="p-3 text-slate-500">{contact.recruiter_email}</td>
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                            contact.result === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' :
-                            contact.result === 'NO_INGRESO' ? 'bg-red-100 text-red-800' :
-                            contact.result === 'NO_ASISTE' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
+                            contact.result === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {contact.result}
                           </span>
@@ -521,48 +455,7 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL FICHA DETALLADA DEL CANDIDATO */}
-      {selectedCandidate && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start border-b pb-3">
-              <div>
-                <h3 className="font-extrabold text-lg text-slate-900">{selectedCandidate.full_name}</h3>
-                <p className="text-xs text-slate-500">CI: {selectedCandidate.document_id} | Tel: {selectedCandidate.phone}</p>
-              </div>
-              <button onClick={() => setSelectedCandidate(null)} className="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                <h4 className="font-bold text-slate-700 mb-1">Resumen Profesional IA:</h4>
-                <p className="text-slate-600">{selectedCandidate.ai_summary}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p><strong>Ubicación:</strong> {selectedCandidate.locality}, {selectedCandidate.department}</p>
-                  <p><strong>Educación:</strong> {selectedCandidate.education_level}</p>
-                  <p><strong>Disponibilidad:</strong> {selectedCandidate.availability}</p>
-                </div>
-                <div>
-                  <p><strong>Libreta de Conducir:</strong> {selectedCandidate.driver_license}</p>
-                  <p><strong>Carné de Salud:</strong> {selectedCandidate.health_card ? 'Sí' : 'No'}</p>
-                  <p><strong>Manipulación de Alimentos:</strong> {selectedCandidate.food_handler_card ? 'Sí' : 'No'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t flex justify-end space-x-3">
-              <button onClick={() => setSelectedCandidate(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg text-xs font-bold">
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CONTACTAR CANDIDATO */}
+      {/* MODAL CONTACTAR */}
       {contactModalCandidate && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -582,11 +475,10 @@ export default function Home() {
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Notas del Reclutador:</label>
+                <label className="font-bold block mb-1">Notas:</label>
                 <textarea 
                   value={contactNotes} 
                   onChange={(e) => setContactNotes(e.target.value)} 
-                  placeholder="Comentarios sobre la llamada o disponibilidad..."
                   className="w-full border p-2 rounded-lg text-xs h-20"
                 />
               </div>
@@ -596,14 +488,14 @@ export default function Home() {
               <button 
                 onClick={() => handleConfirmContact('INGRESO')}
                 disabled={!contactClientTarget}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg text-xs font-bold disabled:opacity-50"
+                className="bg-emerald-600 text-white p-2 rounded-lg text-xs font-bold disabled:opacity-50"
               >
                 ✓ Ingresó
               </button>
               <button 
                 onClick={() => handleConfirmContact('NO_INGRESO')}
                 disabled={!contactClientTarget}
-                className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg text-xs font-bold disabled:opacity-50"
+                className="bg-red-600 text-white p-2 rounded-lg text-xs font-bold disabled:opacity-50"
               >
                 ✕ No Ingresó
               </button>
