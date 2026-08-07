@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
+
+// Inicialización directa del cliente de Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type CandidateStatus = 'NUEVO' | 'CONTACTADO' | 'RECHAZADO' | 'CONTRATADO';
 type ContactResult = 'INGRESO' | 'NO_INGRESO';
@@ -36,8 +41,6 @@ interface ContactRecord {
 }
 
 export default function Home() {
-  const supabase = createClientComponentClient();
-
   // Estados generales
   const [userSession, setUserSession] = useState<any>(null);
   const [authEmail, setAuthEmail] = useState('');
@@ -123,7 +126,7 @@ export default function Home() {
     setUserSession(null);
   };
 
-  // Permisos: Habilitado para Belén, Anahit o cualquier usuario con sesión activa
+  // Permisos habilitados
   const isAdmin = true;
 
   // Manejo de Modal de Contacto
@@ -180,7 +183,7 @@ export default function Home() {
 
     alert('¡Candidato registrado en Contactados exitosamente!');
     closeContactModal();
-    await loadAllData(); // Forzar actualización de la pantalla
+    await loadAllData();
   };
 
   // Guardar nuevo cliente
@@ -206,7 +209,7 @@ export default function Home() {
     }
   };
 
-  // Reasignar ejecutivo de cliente directo
+  // Reasignar ejecutivo de cliente
   const handleUpdateExecutive = async (clientId: string, newEmail: string) => {
     const { error } = await supabase
       .from('clients')
@@ -220,7 +223,7 @@ export default function Home() {
     }
   };
 
-  // Vista cuando no hay sesión iniciada
+  // Login View
   if (!userSession) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'sans-serif' }}>
@@ -264,7 +267,7 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', color: '#0f172a', fontFamily: 'sans-serif' }}>
-      {/* Header Superior */}
+      {/* Header */}
       <header style={{ backgroundColor: '#0f172a', color: '#fff', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>ATS Enterprise — Panel de Control</h1>
@@ -281,7 +284,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Navegación por pestañas */}
+      {/* Navegación Pestañas */}
       <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '0 32px', display: 'flex', gap: '24px' }}>
         <button
           onClick={() => setActiveTab('NUEVOS')}
@@ -303,13 +306,13 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Contenido Principal */}
+      {/* Main Content */}
       <main style={{ padding: '32px' }}>
         {loading ? (
           <p style={{ textAlign: 'center', color: '#64748b' }}>Cargando información...</p>
         ) : (
           <>
-            {/* PESTAÑA: CANDIDATOS NUEVOS */}
+            {/* NUEVOS */}
             {activeTab === 'NUEVOS' && (
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Candidatos Disponibles para Gestión</h2>
@@ -334,7 +337,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* PESTAÑA: CONTACTADOS */}
+            {/* CONTACTADOS */}
             {activeTab === 'CONTACTADOS' && (
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Histórico de Interacciones</h2>
@@ -382,7 +385,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* PESTAÑA: CLIENTES */}
+            {/* CLIENTES */}
             {activeTab === 'CLIENTES' && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -417,7 +420,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* MODAL: CONTACTAR CANDIDATO */}
+      {/* MODAL CONTACTAR */}
       {isContactModalOpen && selectedCandidate && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '12px', width: '100%', maxWidth: '480px', padding: '24px', position: 'relative' }}>
@@ -471,7 +474,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL: CREAR NUEVO CLIENTE */}
+      {/* MODAL CLIENTE */}
       {isNewClientModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '24px', position: 'relative' }}>
