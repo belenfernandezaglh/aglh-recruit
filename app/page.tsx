@@ -95,14 +95,17 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
-  // Modal para Anahit
+  // Modal para Administradores
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientExecutive, setNewClientExecutive] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isAdmin = userSession?.email === 'anahit.armandugon@aglh.com.uy';
+  // PERMISOS ADMIN PARA BELÉN Y ANAHIT
+  const isAdmin = 
+    userSession?.email === 'belen.fernandez@aglh.com.uy' || 
+    userSession?.email === 'anahit.armandugon@aglh.com.uy';
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -297,7 +300,6 @@ export default function Home() {
     await supabase.from('candidates').delete().eq('id', candidateId);
   };
 
-  // PANTALLA DE LOGIN
   if (!userSession) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
