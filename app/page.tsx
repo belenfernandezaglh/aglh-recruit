@@ -1,10 +1,72 @@
-// app/page.tsx
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Candidate, Client, ContactRecord, ContactResult } from '../types';
 import { supabase } from '../lib/supabase';
 import { parseCVAndMatch } from '../lib/aiParser';
+
+export type CandidateStatus = 'NUEVO' | 'CONTACTADO';
+export type ContactResult = 'INGRESO' | 'NO_INGRESO' | 'NO_ASISTE' | 'PENDIENTE';
+
+export interface WorkExperience {
+  company: string;
+  position: string;
+  functions: string;
+}
+
+export interface Client {
+  id: string;
+  created_at?: string;
+  name: string;
+  executive_email?: string;
+  target_profile?: string;
+  match_threshold?: number;
+}
+
+export interface CandidateMatch {
+  id: string;
+  candidate_id: string;
+  client_id: string;
+  match_score: number;
+  client?: Client;
+}
+
+export interface Candidate {
+  id: string;
+  created_at?: string;
+  updated_at?: string;
+  full_name: string;
+  document_id: string;
+  phone: string;
+  email: string;
+  address?: string;
+  locality?: string;
+  department?: string;
+  age?: number;
+  education_level?: string;
+  courses?: string[];
+  work_experience?: WorkExperience[];
+  availability?: string;
+  driver_license?: string;
+  libreta_h?: boolean;
+  health_card?: boolean;
+  food_handler_card?: boolean;
+  ai_summary?: string;
+  status?: CandidateStatus;
+  matches?: CandidateMatch[];
+}
+
+export interface ContactRecord {
+  id: string;
+  created_at: string;
+  candidate_id: string;
+  client_id: string;
+  recruiter_email?: string;
+  executive_email?: string;
+  result: ContactResult;
+  notes?: string;
+  candidate?: Candidate;
+  client?: Client;
+}
 
 type ViewMode = 'clientes' | 'candidates' | 'contactados';
 
@@ -22,7 +84,6 @@ export default function Home() {
   const [filterLibretaH, setFilterLibretaH] = useState(false);
   const [filterHealthCard, setFilterHealthCard] = useState(false);
 
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [contactModalCandidate, setContactModalCandidate] = useState<Candidate | null>(null);
   const [contactClientTarget, setContactClientTarget] = useState<string>('');
   const [contactNotes, setContactNotes] = useState('');
@@ -38,12 +99,11 @@ export default function Home() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const { data: clientsData, error: clientsErr } = await supabase
+      const { data: clientsData } = await supabase
         .from('clients')
         .select('*')
         .order('name');
 
-      if (clientsErr) console.error('Error cargando clientes:', clientsErr.message);
       if (clientsData) setClients(clientsData);
 
       const { data: candidatesData } = await supabase
@@ -88,7 +148,7 @@ export default function Home() {
       processedCount++;
       setUploadProgress(`Analizando con IA (${processedCount}/${fileArray.length}): ${file.name}`);
 
-      const { candidateData, matches } = parseCVAndMatch(file, clients);
+      const { candidateData, matches } = parseCVAndMatch(file, clients as any);
 
       const { data: existing } = await supabase
         .from('candidates')
@@ -166,11 +226,9 @@ export default function Home() {
 
   const handleDeleteCandidate = async (e: React.MouseEvent, candidateId: string) => {
     e.stopPropagation();
-    if (!confirm('¿Eliminar definitivamente esta ficha de la base de datos?')) return;
+    if (!confirm('¿Eliminar esta ficha de la base de datos?')) return;
 
     setCandidates(prev => prev.filter(c => c.id !== candidateId));
-    if (selectedCandidate?.id === candidateId) setSelectedCandidate(null);
-
     await supabase.from('candidates').delete().eq('id', candidateId);
   };
 
@@ -192,9 +250,8 @@ export default function Home() {
       const matchDept = candidate.department?.toLowerCase().includes(q);
       const matchSummary = candidate.ai_summary?.toLowerCase().includes(q);
       const matchDoc = candidate.document_id?.toLowerCase().includes(q);
-      const matchLicense = candidate.driver_license?.toLowerCase().includes(q);
 
-      return matchName || matchLocality || matchDept || matchSummary || matchDoc || matchLicense;
+      return matchName || matchLocality || matchDept || matchSummary || matchDoc;
     }
 
     return true;
@@ -223,7 +280,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Sidebar */}
       <aside className={`${isSidebarCollapsed ? 'w-16' : 'w-60'} bg-[#1f2937] text-white flex flex-col py-4 transition-all duration-300 shrink-0 border-r border-slate-800 z-30`}>
         <div className="px-4 pb-4 border-b border-slate-700/60 flex items-center justify-between">
           <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="w-9 h-9 rounded-lg hover:bg-slate-700/60 flex items-center justify-center text-slate-300">
@@ -249,7 +305,6 @@ export default function Home() {
         </nav>
       </aside>
 
-      {/* Main Workspace */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-[#8cb800] text-white h-16 px-8 flex items-center justify-between shadow-sm">
           <div className="flex items-center space-x-3">
@@ -264,7 +319,6 @@ export default function Home() {
 
         <main className="p-8 max-w-7xl mx-auto w-full space-y-6">
 
-          {/* VISTA 1: GESTIÓN DE CLIENTES */}
           {activeTab === 'clientes' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
@@ -315,10 +369,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* VISTA 2: BASE DE CANDIDATOS */}
           {(activeTab === 'candidates' || selectedClientId) && (
             <div className="space-y-6">
-              
               <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1">
@@ -371,8 +423,7 @@ export default function Home() {
                       return (
                         <div 
                           key={candidate.id} 
-                          onClick={() => setSelectedCandidate(candidate)} 
-                          className="p-5 border border-slate-200 rounded-xl hover:border-[#8cb800] transition-all cursor-pointer bg-slate-50/50 flex flex-col justify-between"
+                          className="p-5 border border-slate-200 rounded-xl hover:border-[#8cb800] transition-all bg-slate-50/50 flex flex-col justify-between"
                         >
                           <div>
                             <div className="flex justify-between items-start">
@@ -391,7 +442,7 @@ export default function Home() {
                           <div className="mt-5 pt-3 border-t border-slate-200 flex justify-between items-center">
                             <button 
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); setContactModalCandidate(candidate); }}
+                              onClick={() => setContactModalCandidate(candidate)}
                               className="bg-[#1f2937] hover:bg-black text-white text-[11px] font-bold px-3 py-1.5 rounded-lg"
                             >
                               📞 Contactar
@@ -416,7 +467,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* VISTA 3: CONTACTADOS */}
           {activeTab === 'contactados' && (
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <h2 className="text-sm font-extrabold uppercase text-slate-700">Historial de Contactados</h2>
@@ -455,7 +505,6 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL CONTACTAR */}
       {contactModalCandidate && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
