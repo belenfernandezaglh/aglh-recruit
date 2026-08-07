@@ -1,9 +1,5 @@
 import { Candidate, Client, WorkExperience } from '../types';
 
-/**
- * Procesa el texto/nombre del archivo del CV para extraer variables
- * y calcular compatibilidad (%) con los clientes activos.
- */
 export function parseCVAndMatch(file: File, clients: Client[]): {
   candidateData: Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'status'>;
   matches: { client_id: string; match_score: number }[];
@@ -11,12 +7,10 @@ export function parseCVAndMatch(file: File, clients: Client[]): {
   const fileName = file.name;
   const cleanName = fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
 
-  // Detección inteligente/simulada a partir del contenido o nombre del archivo
-  const hasLibretaH = /libreta\s*h|elevador/i.test(cleanName) || Math.random() > 0.5;
+  const hasLibretaH = /libreta\s*h|elevador|autoelevador/i.test(cleanName) || Math.random() > 0.5;
   const hasCarnetSalud = /salud|carnet/i.test(cleanName) || Math.random() > 0.3;
-  const hasManipulacion = /manipulac|alimento/i.test(cleanName) || Math.random() > 0.4;
+  const hasManipulacion = /manipulac|alimento|panaderia|gastronomia/i.test(cleanName) || Math.random() > 0.4;
   
-  // Cédula / Documento único generado si no viene explícito
   const fakeDoc = `${Math.floor(1000000 + Math.random() * 8000000)}-${Math.floor(Math.random() * 9)}`;
   const fakePhone = `09${Math.floor(10000000 + Math.random() * 9000000)}`;
   const fakeEmail = `${cleanName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
@@ -54,18 +48,17 @@ export function parseCVAndMatch(file: File, clients: Client[]): {
     ai_summary: aiSummary
   };
 
-  // Cálculo de compatibilidad (%) por cliente activo
   const matches: { client_id: string; match_score: number }[] = [];
 
   clients.forEach(client => {
-    let score = 70 + Math.floor(Math.random() * 26); // Score base entre 70% y 96%
+    let score = 70 + Math.floor(Math.random() * 21); // Base de 70% a 91%
 
-    // Bonificaciones según perfil operativo
-    if (client.name.toLowerCase().includes('corfrisa') && hasLibretaH) {
-      score = Math.min(100, score + 10);
+    // Bonificaciones según requisitos y perfiles
+    if (hasLibretaH && (client.target_profile?.includes('libreta H') || client.target_profile?.includes('autoelevador'))) {
+      score = Math.min(100, score + 12);
     }
-    if (client.name.toLowerCase().includes('divino') && candidateData.locality.includes('Montevideo')) {
-      score = Math.min(100, score + 5);
+    if (hasManipulacion && (client.target_profile?.includes('alimentos') || client.target_profile?.includes('gastronomía'))) {
+      score = Math.min(100, score + 10);
     }
 
     if (score >= (client.match_threshold || 70)) {
