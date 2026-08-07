@@ -1,36 +1,81 @@
-// types/index.ts
+export type CandidateStatus = 'NUEVO' | 'CONTACTADO' | 'DESARTICULADO' | 'INACTIVO';
+export type ContactResult = 'PENDIENTE' | 'INGRESO' | 'NO_INGRESO' | 'NO_ASISTE';
 
-export type CandidateStatus = 'NUEVO' | 'EVALUACION' | 'ENTREVISTA' | 'SELECCIONADO';
-
-export interface Cargo {
-  id: string;
-  title: string;
-  funcion: string;
-  requisitos?: string;
-  ubicacion?: string;
+export interface WorkExperience {
+  company: string;
+  position: string;
+  functions: string;
 }
 
-export interface ClienteCuenta {
+export interface Client {
   id: string;
-  cliente: string;
-  cargoAsociado: string;
-  vacantes: number;
-  contactos: string[];
+  created_at: string;
+  name: string;
+  executive_email: string;
+  target_profile: string;
+  match_threshold: number;
 }
 
-export interface GrupoOperativa {
-  ejecutivo: string;
-  cuentas: ClienteCuenta[];
+export interface CandidateClientMatch {
+  id: string;
+  candidate_id: string;
+  client_id: string;
+  match_score: number;
+  created_at: string;
+  client?: Client;
 }
 
 export interface Candidate {
   id: string;
-  name: string;
+  created_at: string;
+  updated_at: string;
+  
+  // Datos Personales
+  full_name: string;
+  document_id: string; // Único (CI)
   phone: string;
-  email?: string;
-  position: string;
+  email: string;
+  address: string;
+  locality: string;
+  department: string;
+  age?: number;
+  
+  // Formación y Requisitos
+  education_level: string;
+  courses: string[];
+  work_experience: WorkExperience[];
+  availability: string;
+  driver_license: string;
+  libreta_h: boolean;
+  health_card: boolean;
+  food_handler_card: boolean;
+  
+  // IA y Relaciones
+  ai_summary: string;
   status: CandidateStatus;
-  fileName: string;
-  date: string;
-  matchedOperativas: string[];
+  
+  // Matches con clientes (relación)
+  matches?: CandidateClientMatch[];
+}
+
+export interface ContactRecord {
+  id: string;
+  created_at: string;
+  candidate_id: string;
+  client_id: string;
+  recruiter_email: string;
+  executive_email: string;
+  result: ContactResult;
+  notes?: string;
+  candidate?: Candidate;
+  client?: Client;
+}
+
+export interface AuditLog {
+  id: string;
+  created_at: string;
+  user_email: string;
+  action: string;
+  candidate_id?: string;
+  details?: Record<string, any>;
 }
