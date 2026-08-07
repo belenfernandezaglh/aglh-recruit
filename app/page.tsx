@@ -10,6 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type CandidateStatus = 'NUEVO' | 'CONTACTADO' | 'RECHAZADO' | 'CONTRATADO';
 type ContactResult = 'INGRESO' | 'NO_INGRESO';
+type UserRole = 'ADMIN' | 'RECRUITER';
 
 interface Candidate {
   id: string;
@@ -47,6 +48,9 @@ export default function Home() {
   const [userSession, setUserSession] = useState<any>(null);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+
+  // Selector de Rol/Vista para el usuario (Permite ver el panel Admin o el Normal)
+  const [currentRole, setCurrentRole] = useState<UserRole>('ADMIN');
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -251,23 +255,25 @@ export default function Home() {
     );
   }
 
-  // --- VISTA PRINCIPAL ---
+  // --- VISTA PRINCIPAL CON SELECTOR DE MODO (ADMIN / NORMAL) ---
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Segoe UI, Arial, sans-serif', backgroundColor: '#f8f9fa' }}>
       
-      {/* Barra Lateral Oscura con accesos a cada sección */}
+      {/* Barra Lateral Oscura */}
       <aside style={{ width: '50px', backgroundColor: '#1f2430', color: '#a0a7b5', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: '22px', flexShrink: 0 }}>
         <div style={{ width: '28px', height: '28px', backgroundColor: '#8cc63f', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>v</div>
         <div style={{ width: '100%', height: '1px', backgroundColor: '#2d3446' }} />
         
-        {/* Ícono Gestión de Clientes */}
-        <div 
-          title="Gestión de Clientes" 
-          onClick={() => setActiveTab('CLIENTES')} 
-          style={{ cursor: 'pointer', fontSize: '16px', color: activeTab === 'CLIENTES' ? '#8cc63f' : 'inherit' }}
-        >
-          💼
-        </div>
+        {/* Ícono Gestión de Clientes (visible si se requiere en Admin) */}
+        {currentRole === 'ADMIN' && (
+          <div 
+            title="Gestión de Clientes" 
+            onClick={() => setActiveTab('CLIENTES')} 
+            style={{ cursor: 'pointer', fontSize: '16px', color: activeTab === 'CLIENTES' ? '#8cc63f' : 'inherit' }}
+          >
+            💼
+          </div>
+        )}
 
         {/* Ícono Candidatos Nuevos */}
         <div 
@@ -306,8 +312,51 @@ export default function Home() {
             <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '26px', fontStyle: 'italic', letterSpacing: '0.5px' }}>aGLh</span>
             <span style={{ color: '#ffffff', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Servicios Humanos Integrales</span>
           </div>
-          <div style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}>
-            {userSession?.user?.email || 'belen.fernandez@aglh.com.uy'}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* SELECTOR DE MODO / VISTA */}
+            <div style={{ backgroundColor: '#1f2430', borderRadius: '20px', padding: '2px 4px', display: 'flex', alignItems: 'center' }}>
+              <button
+                onClick={() => {
+                  setCurrentRole('ADMIN');
+                  setActiveTab('CLIENTES');
+                }}
+                style={{
+                  border: 'none',
+                  borderRadius: '16px',
+                  padding: '4px 12px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  backgroundColor: currentRole === 'ADMIN' ? '#8cc63f' : 'transparent',
+                  color: '#fff',
+                }}
+              >
+                Panel Admin
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentRole('RECRUITER');
+                  setActiveTab('NUEVOS');
+                }}
+                style={{
+                  border: 'none',
+                  borderRadius: '16px',
+                  padding: '4px 12px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  backgroundColor: currentRole === 'RECRUITER' ? '#8cc63f' : 'transparent',
+                  color: '#fff',
+                }}
+              >
+                Panel Normal
+              </button>
+            </div>
+
+            <div style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}>
+              {userSession?.user?.email || 'belen.fernandez@aglh.com.uy'}
+            </div>
           </div>
         </header>
 
@@ -317,11 +366,11 @@ export default function Home() {
             <p style={{ textAlign: 'center', color: '#888', marginTop: '40px' }}>Cargando datos del portal...</p>
           ) : (
             <>
-              {/* SECCIÓN 1: INICIO DEFAULT -> GESTIÓN DE CLIENTES */}
-              {activeTab === 'CLIENTES' && (
+              {/* VISTA 1: GESTIÓN DE CLIENTES (SÓLO ADMIN) */}
+              {activeTab === 'CLIENTES' && currentRole === 'ADMIN' && (
                 <div>
                   <h1 style={{ textAlign: 'center', color: '#4a4a4a', fontSize: '22px', fontWeight: '400', margin: '0 0 24px 0' }}>
-                    Panel de Gestión de Clientes
+                    Panel de Gestión de Clientes (Admin)
                   </h1>
 
                   <div style={{ borderTop: '1px solid #e0e0e0', paddingTop: '16px', marginBottom: '20px' }}>
@@ -358,7 +407,7 @@ export default function Home() {
                 </div>
               )}
 
-              {/* SECCIÓN 2: CANDIDATOS NUEVO (ACCESIBLE DESDE LA BARRA LATERAL) */}
+              {/* VISTA 2: CANDIDATOS NUEVOS (VISTA NORMAL / RECLUTADOR) */}
               {activeTab === 'NUEVOS' && (
                 <div>
                   <h1 style={{ textAlign: 'center', color: '#4a4a4a', fontSize: '22px', fontWeight: '400', margin: '0 0 24px 0' }}>
@@ -376,7 +425,6 @@ export default function Home() {
                       const match = candidate.match_score ?? Math.floor(Math.random() * 25) + 75;
                       return (
                         <div key={candidate.id} style={{ backgroundColor: '#fff', padding: '18px', border: '1px solid #e0e0e0', borderRadius: '4px', position: 'relative' }}>
-                          {/* Porcentaje de coincidencia */}
                           <div style={{ position: 'absolute', top: '16px', right: '16px', backgroundColor: match >= 85 ? '#e8f5e9' : '#fff3e0', color: match >= 85 ? '#2e7d32' : '#e65100', border: `1px solid ${match >= 85 ? '#a5d6a7' : '#ffe0b2'}`, padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>
                             🎯 {match}% Coincidencia
                           </div>
@@ -403,7 +451,7 @@ export default function Home() {
                 </div>
               )}
 
-              {/* SECCIÓN 3: MÓDULO CONTACTADOS (ACCESIBLE DESDE LA BARRA LATERAL) */}
+              {/* VISTA 3: MÓDULO CONTACTADOS */}
               {activeTab === 'CONTACTADOS' && (
                 <div>
                   <h1 style={{ textAlign: 'center', color: '#4a4a4a', fontSize: '22px', fontWeight: '400', margin: '0 0 24px 0' }}>
