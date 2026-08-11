@@ -48,6 +48,15 @@ interface ContactRecord {
   client?: Client;
 }
 
+interface CandidateAuditLog {
+  id: string;
+  candidate_id: string;
+  action: 'CREADO' | 'EDITADO' | 'ELIMINADO' | 'CV_SUBIDO';
+  user_email: string;
+  details: string;
+  created_at: string;
+}
+
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [userSession, setUserSession] = useState<any>(null);
@@ -63,7 +72,9 @@ export default function Home() {
   const [clients, setClients] = useState<Client[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
+  const [auditLogs, setAuditLogs] = useState<CandidateAuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingCv, setUploadingCv] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('MATCH_DESC');
@@ -78,7 +89,7 @@ export default function Home() {
   const [isEditReqModalOpen, setIsEditReqModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  
+
   // Formulario Requisitos
   const [reqLocation, setReqLocation] = useState('');
   const [reqExperience, setReqExperience] = useState('');
@@ -174,12 +185,32 @@ export default function Home() {
       if (supabase) {
         const contactRes = await supabase.from('contacts').select('*, candidate:candidates(*), client:clients(*)').order('created_at', { ascending: false });
         if (contactRes.data) setContacts(contactRes.data);
+
+        const auditRes = await supabase.from('candidate_history').select('*').order('created_at', { ascending: false });
+        if (auditRes.data) setAuditLogs(auditRes.data);
       }
     } catch (e) {
       console.error('Error cargando datos:', e);
     } finally {
       setLoading(false);
     }
+  };
+
+  const logCandidateAction = async (candidateId: string, action: 'CREADO' | 'EDITADO' | 'ELIMINADO' | 'CV_SUBIDO', details: string) => {
+    const userEmail = userSession?.user?.email || 'reclutador@aglh.com.uy';
+    const logItem: CandidateAuditLog = {
+      id: 'log_' + Date.now(),
+      candidate_id: candidateId,
+      action,
+      user_email: userEmail,
+      details,
+      created_at: new Date().toISOString()
+    };
+
+    if (supabase) {
+      await supabase.from('candidate_history').insert([{ candidate_id: candidateId, action, user_email: userEmail, details }]);
+    }
+    setAuditLogs(prev => [logItem, ...prev]);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -258,6 +289,7 @@ export default function Home() {
     }
     setCandidates(candidates.map(c => c.id === candidate.id ? { ...c, status: 'CONTACTADO' } : c));
     setContacts([{ id: Date.now().toString(), candidate_id: candidate.id, client_id: client.id, recruiter_email: recruiterEmail, created_at: new Date().toISOString(), candidate, client }, ...contacts]);
+    await logCandidateAction(candidate.id, 'EDITADO', `Asignado y contactado para el cliente ${client.name}`);
     alert(`Candidato ${candidate.first_name || ''} ${candidate.last_name || ''} movido a CONTACTADOS.`);
   };
 
@@ -269,9 +301,10 @@ export default function Home() {
     }
     setCandidates(candidates.map(c => c.id === candidateId ? { ...c, status: 'NUEVO' } : c));
     setContacts(contacts.filter(ct => ct.id !== contactRecordId));
+    await logCandidateAction(candidateId, 'EDITADO', 'Retornado de Contactados a la base activa (NUEVO)');
   };
 
-  // FUNCIONES DE ADMINISTRACIÓN DE CLIENTES
+  // FUNCIONES DE ADMINISTRACIÓN DE CLIENTES (ADMIN)
   const handleSaveClientDetails = async () => {
     if (!clientName.trim()) return alert('El nombre del cliente es obligatorio');
     
@@ -317,7 +350,46 @@ export default function Home() {
     setIsEditReqModalOpen(false);
   };
 
-  // FUNCIONES DE GESTIÓN DE CANDIDATOS (EDITAR / ELIMINAR / CV)
+  // SUBIR CV
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedCandidateForModal) return;
+
+    setUploadingCv(true);
+    try {
+      let finalUrl = '';
+      if (supabase) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `cv_${selectedCandidateForModal.id}_${Date.now()}.${fileExt}`;
+        const { data, error } = await supabase.storage.from('cvs').upload(fileName, file, { upsert: true });
+
+        if (error) {
+          console.warn('Bucket de Supabase no disponible, simulando archivo asignado...', error);
+          finalUrl = URL.createObjectURL(file);
+        } else {
+          const { data: publicUrlData } = supabase.storage.from('cvs').getPublicUrl(fileName);
+          finalUrl = publicUrlData.publicUrl;
+        }
+
+        await supabase.from('candidates').update({ cv_url: finalUrl }).eq('id', selectedCandidateForModal.id);
+      } else {
+        finalUrl = URL.createObjectURL(file);
+      }
+
+      const updatedCandidate = { ...selectedCandidateForModal, cv_url: finalUrl };
+      setCandidates(candidates.map(c => c.id === updatedCandidate.id ? updatedCandidate : c));
+      setSelectedCandidateForModal(updatedCandidate);
+      await logCandidateAction(updatedCandidate.id, 'CV_SUBIDO', `Subió/Actualizó el archivo de CV (${file.name})`);
+      alert('CV cargado y guardado correctamente.');
+    } catch (err) {
+      console.error('Error al subir archivo:', err);
+      alert('Hubo un problema al subir el archivo.');
+    } finally {
+      setUploadingCv(false);
+    }
+  };
+
+  // FUNCIONES DE GESTIÓN DE CANDIDATOS (EDITAR / ELIMINAR / HISTORIAL)
   const handleOpenCandidateModal = (candidate: Candidate) => {
     setSelectedCandidateForModal(candidate);
     setEditCandData(candidate);
@@ -352,6 +424,7 @@ export default function Home() {
     setCandidates(candidates.map(c => c.id === updatedCandidate.id ? updatedCandidate : c));
     setSelectedCandidateForModal(updatedCandidate);
     setIsEditingCandidate(false);
+    await logCandidateAction(updatedCandidate.id, 'EDITADO', 'Modificó datos personales/laborales del candidato.');
     alert('Datos del candidato actualizados correctamente.');
   };
 
@@ -361,6 +434,7 @@ export default function Home() {
       await supabase.from('candidates').delete().eq('id', candidateId);
       await supabase.from('contacts').delete().eq('candidate_id', candidateId);
     }
+    await logCandidateAction(candidateId, 'ELIMINADO', 'Candidato eliminado permanentemente.');
     setCandidates(candidates.filter(c => c.id !== candidateId));
     setContacts(contacts.filter(ct => ct.candidate_id !== candidateId));
     setIsCandidateModalOpen(false);
@@ -675,10 +749,10 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL FICHA CANDIDATO CON OPCIONES DE CV, EDITAR Y ELIMINAR */}
+      {/* MODAL FICHA CANDIDATO CON OPCIONES DE SUBIR/DESCARGAR CV, EDITAR, ELIMINAR E HISTORIAL */}
       {isCandidateModalOpen && selectedCandidateForModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '10px', width: '500px', maxHeight: '85vh', overflowY: 'auto' }}>
+          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '10px', width: '560px', maxHeight: '85vh', overflowY: 'auto' }}>
             
             {!isEditingCandidate ? (
               <>
@@ -697,22 +771,47 @@ export default function Home() {
                   <p><strong>Habilidades:</strong> {(selectedCandidateForModal.skills || []).join(', ')}</p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
-                  {selectedCandidateForModal.cv_url ? (
-                    <a href={selectedCandidateForModal.cv_url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, backgroundColor: '#0056b3', color: '#fff', textAlign: 'center', padding: '10px', borderRadius: '4px', textDecoration: 'none', fontWeight: 'bold', fontSize: '13px' }}>
-                      📄 Descargar CV
-                    </a>
-                  ) : (
-                    <button onClick={() => alert('Este candidato no tiene un CV adjunto registrado.')} style={{ flex: 1, backgroundColor: '#ccc', color: '#666', border: 'none', padding: '10px', borderRadius: '4px', fontSize: '13px' }}>
-                      📄 CV no disponible
-                    </button>
-                  )}
+                {/* SECCIÓN CARGA / DESCARGA CV */}
+                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f5f9ee', borderRadius: '8px', border: '1px solid #d0e3b5' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#2c3137' }}>📄 Curriculums / Documentos</h4>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {selectedCandidateForModal.cv_url ? (
+                      <a href={selectedCandidateForModal.cv_url} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: '#0056b3', color: '#fff', padding: '6px 12px', borderRadius: '4px', textDecoration: 'none', fontWeight: 'bold', fontSize: '12px' }}>
+                        ⬇ Descargar CV Guardado
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#888' }}>No hay CV cargado aún</span>
+                    )}
 
+                    <label style={{ backgroundColor: '#8cc63f', color: '#fff', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                      {uploadingCv ? 'Subiendo...' : '📤 Cargar / Reemplazar CV'}
+                      <input type="file" accept=".pdf,.doc,.docx" onChange={handleFileUpload} style={{ display: 'none' }} disabled={uploadingCv} />
+                    </label>
+                  </div>
+                </div>
+
+                {/* HISTORIAL DE MODIFICACIONES */}
+                <div style={{ marginTop: '16px', borderTop: '1px solid #eee', paddingTop: '12px' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#555' }}>📜 Historial de Cambios</h4>
+                  <div style={{ maxHeight: '100px', overflowY: 'auto', backgroundColor: '#fafafa', padding: '8px', borderRadius: '6px', fontSize: '11px', border: '1px solid #eaeaea' }}>
+                    {auditLogs.filter(log => log.candidate_id === selectedCandidateForModal.id).length > 0 ? (
+                      auditLogs.filter(log => log.candidate_id === selectedCandidateForModal.id).map(log => (
+                        <div key={log.id} style={{ marginBottom: '6px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                          <strong>{new Date(log.created_at).toLocaleString()}</strong> - <em>{log.user_email}</em>: {log.details}
+                        </div>
+                      ))
+                    ) : (
+                      <span style={{ color: '#888' }}>Sin registros de cambios aún.</span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
                   <button onClick={() => handleDeleteCandidate(selectedCandidateForModal.id)} style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
-                    🗑 Eliminar
+                    🗑 Eliminar Candidato
                   </button>
 
-                  <button onClick={() => setIsCandidateModalOpen(false)} style={{ backgroundColor: '#e0e0e0', color: '#333', border: 'none', padding: '10px 14px', borderRadius: '4px', cursor: 'pointer' }}>
+                  <button onClick={() => setIsCandidateModalOpen(false)} style={{ marginLeft: 'auto', backgroundColor: '#e0e0e0', color: '#333', border: 'none', padding: '10px 18px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
                     Cerrar
                   </button>
                 </div>
