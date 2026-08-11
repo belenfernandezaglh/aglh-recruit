@@ -109,7 +109,6 @@ export default function Home() {
         if (res.data) clientData = res.data;
       }
 
-      // Si no hay clientes en la DB, inicializar estructura por defecto
       if (clientData.length === 0) {
         clientData = [
           { id: 'c1', name: 'CORFRISA', executive_email: 'pablo@aglh.com.uy' },
@@ -185,7 +184,6 @@ export default function Home() {
         await loadAllData();
       }
     } else {
-      // Modo fallback sin Supabase directo
       setUserSession({ user: { email: authEmail } });
       const isAllowedAdmin = authEmail.toLowerCase().includes('anahit') || authEmail.toLowerCase().includes('belen');
       setViewMode(isAllowedAdmin ? 'Admin' : 'Reclutador');
@@ -205,13 +203,17 @@ export default function Home() {
 
     if (candidate.location.toLowerCase().includes(req.location.toLowerCase()) || req.location.toLowerCase().includes(candidate.location.toLowerCase())) {
       score += 30;
-    } else score += 15;
+    } else {
+      score += 15;
+    }
 
     const expText = candidate.main_experience.toLowerCase();
     const reqExpText = req.required_experience.toLowerCase();
     if (expText.includes(reqExpText) || reqExpText.includes(expText)) {
       score += 40;
-    } else score += 20;
+    } else {
+      score += 20;
+    }
 
     let kwMatch = 0;
     if (req.keywords && req.keywords.length > 0) {
@@ -219,7 +221,9 @@ export default function Home() {
         if (candidate.skills?.includes(kw.toLowerCase()) || expText.includes(kw.toLowerCase())) kwMatch++;
       });
       score += Math.min(30, Math.round((kwMatch / req.keywords.length) * 30));
-    } else score += 20;
+    } else {
+      score += 20;
+    }
 
     return Math.min(99, Math.max(50, score));
   };
@@ -302,8 +306,6 @@ export default function Home() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif', backgroundColor: '#e2edd0' }}>
-      
-      {/* SIDEBAR */}
       <aside style={{ width: sidebarOpen ? '240px' : '60px', backgroundColor: '#4a4f56', color: '#ffffff', transition: 'width 0.2s ease', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ height: '56px', display: 'flex', alignItems: 'center', padding: '0 16px', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: '#3e4349' }}>
           {sidebarOpen && <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#8cc63f', fontStyle: 'italic' }}>aglh</span>}
@@ -321,7 +323,7 @@ export default function Home() {
             {sidebarOpen && <span style={{ fontSize: '12px' }}>({candidates.filter(c => c.status === 'NUEVO').length})</span>}
           </button>
 
-          <button onClick={() => setActiveTab('CONTACTADOS')} style={{ display: 'flex', alignItems: 'center', justifyContent sidebarOpen ? 'space-between' : 'center', backgroundColor: activeTab === 'CONTACTADOS' ? '#8cc63f' : 'transparent', color: '#ffffff', border: 'none', padding: '10px 12px', borderRadius: '18px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
+          <button onClick={() => setActiveTab('CONTACTADOS')} style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: activeTab === 'CONTACTADOS' ? '#8cc63f' : 'transparent', color: '#ffffff', border: 'none', padding: '10px 12px', borderRadius: '18px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
             <span>👤 {sidebarOpen && 'Módulo Contactados'}</span>
             {sidebarOpen && <span style={{ fontSize: '12px' }}>({contacts.length})</span>}
           </button>
@@ -334,7 +336,6 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* ÁREA PRINCIPAL */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <header style={{ backgroundColor: '#8cc63f', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -538,7 +539,6 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL VER FICHA */}
       {isCandidateModalOpen && selectedCandidateForModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '10px', width: '450px', maxHeight: '80vh', overflowY: 'auto' }}>
@@ -555,7 +555,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL EDITAR REQUISITOS */}
       {isEditReqModalOpen && editingClient && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '10px', width: '400px' }}>
@@ -564,7 +563,7 @@ export default function Home() {
             <input type="text" value={reqLocation} onChange={(e) => setReqLocation(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '12px', border: '1px solid #ccc', borderRadius: '4px' }} />
             <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Experiencia / Perfil:</label>
             <input type="text" value={reqExperience} onChange={(e) => setReqExperience(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '12px', border: '1px solid #ccc', borderRadius: '4px' }} />
-            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Palabras Clave (coma):</label>
+            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Palabras Clave (separadas por coma):</label>
             <input type="text" value={reqKeywords} onChange={(e) => setReqKeywords(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '16px', border: '1px solid #ccc', borderRadius: '4px' }} />
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={handleSaveRequirements} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '10px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar</button>
@@ -573,7 +572,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
