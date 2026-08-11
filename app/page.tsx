@@ -401,7 +401,7 @@ export default function Home() {
     setIsEditReqModalOpen(false);
   };
 
-  // FUNCION PARA CARGA MULTIPLE DE CVS (PDFs)
+  // FUNCION PARA CARGA MULTIPLE DE CVS (PDFs) Y REVALIDACION AUTOMATICA
   const handleMultipleCvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -409,7 +409,6 @@ export default function Home() {
     setUploadingCv(true);
     const totalFiles = files.length;
     let uploadedCount = 0;
-    const newCandidatesList: Candidate[] = [];
 
     for (let i = 0; i < totalFiles; i++) {
       const file = files[i];
@@ -424,52 +423,44 @@ export default function Home() {
       const firstName = nameParts[0] || 'Candidato';
       const lastName = nameParts.slice(1).join(' ') || 'Nuevo';
 
-      if (supabase) {
-        const fileName = `cv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.pdf`;
-        const { error } = await supabase.storage.from('cvs').upload(fileName, file, { upsert: true });
+      try {
+        if (supabase) {
+          const fileName = `cv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.pdf`;
+          const { error } = await supabase.storage.from('cvs').upload(fileName, file, { upsert: true });
 
-        if (!error) {
-          const { data: publicUrlData } = supabase.storage.from('cvs').getPublicUrl(fileName);
-          finalUrl = publicUrlData.publicUrl;
-        } else {
-          finalUrl = URL.createObjectURL(file);
+          if (!error) {
+            const { data: publicUrlData } = supabase.storage.from('cvs').getPublicUrl(fileName);
+            finalUrl = publicUrlData.publicUrl;
+          } else {
+            console.warn('Advertencia en subida de Storage:', error.message);
+            finalUrl = URL.createObjectURL(file);
+          }
+
+          const newCandObj = {
+            first_name: firstName,
+            last_name: lastName,
+            location: 'Montevideo',
+            main_experience: 'Candidato cargado vía CV PDF',
+            skills: ['pdf', 'cv'],
+            status: 'NUEVO' as CandidateStatus,
+            cv_url: finalUrl
+          };
+
+          const { data: insertedData, error: insertError } = await supabase.from('candidates').insert([newCandObj]).select();
+          if (insertError) {
+            console.error('Error insertando candidato:', insertError.message);
+          } else if (insertedData && insertedData[0]) {
+            await logCandidateAction(insertedData[0].id, 'CV_SUBIDO', `Cargó CV en PDF: ${file.name}`);
+          }
         }
-
-        const newCandObj = {
-          first_name: firstName,
-          last_name: lastName,
-          location: 'Montevideo',
-          main_experience: 'Candidato cargado vía CV PDF',
-          skills: ['pdf', 'cv'],
-          status: 'NUEVO' as CandidateStatus,
-          cv_url: finalUrl
-        };
-
-        const { data: insertedData } = await supabase.from('candidates').insert([newCandObj]).select();
-        if (insertedData && insertedData[0]) {
-          newCandidatesList.push(insertedData[0]);
-          await logCandidateAction(insertedData[0].id, 'CV_SUBIDO', `Cargó CV en PDF: ${file.name}`);
-        }
-      } else {
-        const dummyCand: Candidate = {
-          id: 'cv_' + Date.now() + '_' + i,
-          first_name: firstName,
-          last_name: lastName,
-          location: 'Montevideo',
-          main_experience: 'Candidato cargado vía CV PDF',
-          skills: ['pdf', 'cv'],
-          status: 'NUEVO',
-          created_at: new Date().toISOString(),
-          cv_url: URL.createObjectURL(file)
-        };
-        newCandidatesList.push(dummyCand);
+        uploadedCount++;
+      } catch (err) {
+        console.error('Error procesando archivo:', file.name, err);
       }
-      uploadedCount++;
     }
 
-    if (newCandidatesList.length > 0) {
-      setCandidates(prev => [...newCandidatesList, ...prev]);
-    }
+    // Revalidación: volvemos a cargar los datos desde la base de datos
+    await loadAllData();
 
     setUploadingCv(false);
     setUploadProgress('');
@@ -652,8 +643,6 @@ export default function Home() {
             <>
               {activeTab === 'CLIENTES' && activeClient && (
                 <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-                  
-                  {/* BARRA SUPERIOR DE SELECTOR DE CLIENTES */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '8px', flexWrap: 'wrap' }}>
                     <div style={{ flex: 1, minWidth: '200px' }}>
                       <select 
@@ -678,264 +667,170 @@ export default function Home() {
                           setClientZona('');
                           setIsClientModalOpen(true);
                         }}
-                        style={{ backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '20px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        style={{ backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
                       >
                         + Nuevo Cliente
                       </button>
                     )}
                   </div>
 
-                  {/* CABECERA DEL CLIENTE */}
-                  <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', boxSizing: 'border-box', width: '100%' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <h1 style={{ margin: 0, color: '#2c3137', fontSize: '20px' }}>{activeClient.name}</h1>
-                            {activeClient.zona && (
-                              <span style={{ fontSize: '11px', backgroundColor: '#f0f0f0', color: '#555', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
-                                {activeClient.zona}
+                  {/* VISTA DE TABLA DE CANDIDATOS NUEVOS */}
+                  <div style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Buscar por nombre, ubicación o experiencia..." 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', minWidth: '260px', fontSize: '13px' }}
+                      />
+                      <select 
+                        value={sortBy} 
+                        onChange={(e) => setSortBy(e.target.value as SortOption)}
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '13px' }}
+                      >
+                        <option value="MATCH_DESC">Mayor Coincidencia (Match)</option>
+                        <option value="NEWEST">Más Recientes</option>
+                        <option value="OLDEST">Más Antiguos</option>
+                      </select>
+                    </div>
+
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #eee', color: '#666' }}>
+                          <th style={{ padding: '10px' }}>Candidato</th>
+                          <th style={{ padding: '10px' }}>Ubicación</th>
+                          <th style={{ padding: '10px' }}>Experiencia</th>
+                          <th style={{ padding: '10px' }}>Match</th>
+                          <th style={{ padding: '10px' }}>Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getFilteredAndSortedCandidates(activeClient).map(candidate => (
+                          <tr key={candidate.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <td style={{ padding: '10px', fontWeight: 'bold', cursor: 'pointer', color: '#2b5797' }} onClick={() => handleOpenCandidateModal(candidate)}>
+                              {candidate.first_name} {candidate.last_name}
+                            </td>
+                            <td style={{ padding: '10px' }}>{candidate.location}</td>
+                            <td style={{ padding: '10px' }}>{candidate.main_experience}</td>
+                            <td style={{ padding: '10px' }}>
+                              <span style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                                {calculateMatch(candidate, activeClient)}%
                               </span>
-                            )}
-                          </div>
-
-                          <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#666', lineHeight: '1.4' }}>
-                            Ubicación: <strong>{activeClient.requirements?.location || activeClient.zona || 'No especificada'}</strong> | Perfil: <strong>{activeClient.requirements?.required_experience || 'No especificado'}</strong> | Ejecutivo: <strong>{activeClient.executive_email || 'Sin asignar'}</strong>
-                          </p>
-
-                          {activeClient.direccion && (
-                            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#555' }}>
-                              🏠 <strong>Dirección:</strong> {activeClient.direccion}
-                            </p>
-                          )}
-
-                          {activeClient.ubicacion_url && (
-                            <div style={{ marginTop: '10px' }}>
-                              <a
-                                href={activeClient.ubicacion_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#2563eb', color: '#ffffff', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', textDecoration: 'none' }}
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                              <button 
+                                onClick={() => handleContactCandidate(candidate, activeClient)}
+                                style={{ backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
                               >
-                                📍 Abrir en Google Maps
-                              </a>
-                            </div>
-                          )}
-                        </div>
-
-                        {viewMode === 'Admin' && (
-                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                            <button
-                              onClick={() => {
-                                setEditingClient(activeClient);
-                                setClientName(activeClient.name);
-                                setClientExecEmail(activeClient.executive_email || '');
-                                setClientDireccion(activeClient.direccion || '');
-                                setClientUbicacionUrl(activeClient.ubicacion_url || '');
-                                setClientZona(activeClient.zona || '');
-                                setIsClientModalOpen(true);
-                              }}
-                              style={{ backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                            >
-                              ✏ Editar Cliente
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEditingClient(activeClient);
-                                setReqLocation(activeClient.requirements?.location || '');
-                                setReqExperience(activeClient.requirements?.required_experience || '');
-                                setReqKeywords((activeClient.requirements?.keywords || []).join(', '));
-                                setIsEditReqModalOpen(true);
-                              }}
-                              style={{ backgroundColor: '#383d42', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                            >
-                              ⚙ Editar Requisitos
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClient(activeClient.id)}
-                              style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                            >
-                              🗑 Eliminar
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', backgroundColor: '#f5f9ee', padding: '10px', borderRadius: '8px' }}>
-                        <input
-                          type="text"
-                          placeholder="🔍 Buscar por nombre, localidad o experiencia..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          style={{ flex: 1, minWidth: '220px', padding: '8px 12px', border: '1px solid #ccc', borderRadius: '6px', fontSize: '13px' }}
-                        />
-                        <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as SortOption)}
-                          style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: '6px', fontSize: '13px', backgroundColor: '#fff' }}
-                        >
-                          <option value="MATCH_DESC">Mayor % Match</option>
-                          <option value="MATCH_ASC">Menor % Match</option>
-                          <option value="NEWEST">Más Recientes</option>
-                          <option value="OLDEST">Más Antiguos</option>
-                          <option value="LOCATION">Ubicación</option>
-                        </select>
-                      </div>
-
-                    </div>
+                                Contactar
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-
-                  {/* LISTADO DE CANDIDATOS */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
-                    {getFilteredAndSortedCandidates(activeClient).map((cand) => {
-                      const matchPct = calculateMatch(cand, activeClient);
-                      return (
-                        <div key={cand.id} style={{ backgroundColor: '#ffffff', borderRadius: '10px', padding: '14px', border: '1px solid #e2edd0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                              <h3 style={{ margin: 0, fontSize: '15px', color: '#2c3137' }}>{cand.first_name} {cand.last_name}</h3>
-                              <span style={{ backgroundColor: matchPct >= 75 ? '#8cc63f' : matchPct >= 60 ? '#f39c12' : '#e74c3c', color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '10px' }}>
-                                {matchPct}% Match
-                              </span>
-                            </div>
-
-                            <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#666' }}>📍 {cand.location}</p>
-                            <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#444', lineHeight: '1.3' }}>{cand.main_experience}</p>
-
-                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                              {cand.skills?.map((sk, idx) => (
-                                <span key={idx} style={{ backgroundColor: '#f0f0f0', color: '#555', fontSize: '10px', padding: '2px 6px', borderRadius: '4px' }}>{sk}</span>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '6px', borderTop: '1px solid #f0f0f0', paddingTop: '10px' }}>
-                            <button
-                              onClick={() => handleOpenCandidateModal(cand)}
-                              style={{ flex: 1, backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                            >
-                              Ver Perfil
-                            </button>
-                            <button
-                              onClick={() => handleContactCandidate(cand, activeClient)}
-                              style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                            >
-                              Contactar
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
                 </div>
               )}
 
-              {/* PESTAÑA DE CONTACTADOS */}
-              {activeTab === 'CONTACTADOS' && (
-                <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
-                  <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#2c3137' }}>Candidatos Contactados</h2>
-                  {contacts.length === 0 ? (
-                    <p style={{ color: '#666', fontSize: '13px' }}>No hay candidatos registrados en estado contactado.</p>
-                  ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
-                      {contacts.map((ct) => (
-                        <div key={ct.id} style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '12px', backgroundColor: '#fafafa' }}>
-                          <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#222' }}>{ct.candidate?.first_name} {ct.candidate?.last_name}</h4>
-                          <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#666' }}>Cliente: <strong>{ct.client?.name || 'Cliente'}</strong></p>
-                          <p style={{ margin: '0 0 8px 0', fontSize: '11px', color: '#888' }}>Contactado por: {ct.recruiter_email}</p>
-                          <button
-                            onClick={() => handleReturnToCandidates(ct.id, ct.candidate_id)}
-                            style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                          >
-                            Devolver a Activos
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* PESTAÑA DE NUEVOS */}
               {activeTab === 'NUEVOS' && (
-                <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h2 style={{ margin: 0, fontSize: '18px', color: '#2c3137' }}>Candidatos Nuevos Sin Asignar</h2>
-                    <label style={{ backgroundColor: '#8cc63f', color: '#ffffff', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-                      + Cargar varios CV (PDF)
-                      <input type="file" accept="application/pdf" multiple onChange={handleMultipleCvUpload} style={{ display: 'none' }} />
-                    </label>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-                    {candidates.filter(c => c.status === 'NUEVO').map(cand => (
-                      <div key={cand.id} style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '12px' }}>
-                        <h3 style={{ margin: '0 0 4px 0', fontSize: '14px' }}>{cand.first_name} {cand.last_name}</h3>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#666' }}>📍 {cand.location}</p>
-                        <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#444' }}>{cand.main_experience}</p>
-                        <button
-                          onClick={() => handleOpenCandidateModal(cand)}
-                          style={{ backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
-                        >
-                          Ver Detalles
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '16px' }}>
+                  <h3>Todos los Candidatos Nuevos ({candidates.filter(c => c.status === 'NUEVO').length})</h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px', marginTop: '12px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #eee', color: '#666' }}>
+                        <th style={{ padding: '10px' }}>Nombre</th>
+                        <th style={{ padding: '10px' }}>Ubicación</th>
+                        <th style={{ padding: '10px' }}>Experiencia</th>
+                        <th style={{ padding: '10px' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {candidates.filter(c => c.status === 'NUEVO').map(candidate => (
+                        <tr key={candidate.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <td style={{ padding: '10px', fontWeight: 'bold' }}>{candidate.first_name} {candidate.last_name}</td>
+                          <td style={{ padding: '10px' }}>{candidate.location}</td>
+                          <td style={{ padding: '10px' }}>{candidate.main_experience}</td>
+                          <td style={{ padding: '10px' }}>
+                            <button onClick={() => handleOpenCandidateModal(candidate)} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}>Ver Ficha</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
 
+              {activeTab === 'CONTACTADOS' && (
+                <div style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '16px' }}>
+                  <h3>Candidatos Contactados ({contacts.length})</h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px', marginTop: '12px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #eee', color: '#666' }}>
+                        <th style={{ padding: '10px' }}>Candidato</th>
+                        <th style={{ padding: '10px' }}>Cliente</th>
+                        <th style={{ padding: '10px' }}>Reclutador</th>
+                        <th style={{ padding: '10px' }}>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contacts.map(ct => (
+                        <tr key={ct.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <td style={{ padding: '10px', fontWeight: 'bold' }}>{ct.candidate?.first_name} {ct.candidate?.last_name}</td>
+                          <td style={{ padding: '10px' }}>{ct.client?.name || 'Cliente'}</td>
+                          <td style={{ padding: '10px' }}>{ct.recruiter_email}</td>
+                          <td style={{ padding: '10px' }}>
+                            <button onClick={() => handleReturnToCandidates(ct.id, ct.candidate_id)} style={{ backgroundColor: '#f44336', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>
+                              Devolver a Nuevos
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
         </main>
       </div>
 
-      {/* MODAL DETALLES DE CANDIDATO */}
+      {/* MODAL FICHA / EDICION CANDIDATO */}
       {isCandidateModalOpen && selectedCandidateForModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '16px' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '12px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '20px', boxSizing: 'border-box' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ margin: 0, fontSize: '18px' }}>Perfil de Candidato</h2>
+              <h3 style={{ margin: 0 }}>{isEditingCandidate ? 'Editar Candidato' : 'Ficha del Candidato'}</h3>
               <button onClick={() => setIsCandidateModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✕</button>
             </div>
 
-            {!isEditingCandidate ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                <p><strong>Nombre:</strong> {selectedCandidateForModal.first_name} {selectedCandidateForModal.last_name}</p>
-                <p><strong>Email:</strong> {selectedCandidateForModal.email || 'No registrado'}</p>
-                <p><strong>Teléfono:</strong> {selectedCandidateForModal.phone || 'No registrado'}</p>
-                <p><strong>Ubicación:</strong> {selectedCandidateForModal.location}</p>
-                <p><strong>Experiencia:</strong> {selectedCandidateForModal.main_experience}</p>
-                <p><strong>Habilidades:</strong> {selectedCandidateForModal.skills?.join(', ')}</p>
+            {isEditingCandidate ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <input type="text" placeholder="Nombre" value={editCandData.first_name || ''} onChange={(e) => setEditCandData({ ...editCandData, first_name: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                <input type="text" placeholder="Apellido" value={editCandData.last_name || ''} onChange={(e) => setEditCandData({ ...editCandData, last_name: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                <input type="text" placeholder="Ubicación" value={editCandData.location || ''} onChange={(e) => setEditCandData({ ...editCandData, location: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                <textarea placeholder="Experiencia" value={editCandData.main_experience || ''} onChange={(e) => setEditCandData({ ...editCandData, main_experience: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', minHeight: '80px' }} />
                 
-                <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '6px' }}>
-                  <p style={{ margin: '0 0 6px 0', fontWeight: 'bold' }}>Archivo de Curriculum (CV):</p>
-                  {selectedCandidateForModal.cv_url ? (
-                    <a href={selectedCandidateForModal.cv_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: 'bold' }}>📄 Ver Documento de CV</a>
-                  ) : (
-                    <p style={{ margin: 0, color: '#888' }}>Sin CV adjunto.</p>
-                  )}
-                  <input type="file" accept="application/pdf" multiple onChange={handleMultipleCvUpload} style={{ marginTop: '8px', fontSize: '12px' }} />
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                  <button onClick={() => setIsEditingCandidate(true)} style={{ flex: 1, backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Editar Datos</button>
-                  <button onClick={() => handleDeleteCandidate(selectedCandidateForModal.id)} style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Eliminar</button>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                  <button onClick={handleSaveCandidateChanges} style={{ backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar</button>
+                  <button onClick={() => setIsEditingCandidate(false)} style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <input type="text" value={editCandData.first_name || ''} onChange={e => setEditCandData({ ...editCandData, first_name: e.target.value })} placeholder="Nombre" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                <input type="text" value={editCandData.last_name || ''} onChange={e => setEditCandData({ ...editCandData, last_name: e.target.value })} placeholder="Apellido" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                <input type="email" value={editCandData.email || ''} onChange={e => setEditCandData({ ...editCandData, email: e.target.value })} placeholder="Email" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                <input type="text" value={editCandData.phone || ''} onChange={e => setEditCandData({ ...editCandData, phone: e.target.value })} placeholder="Teléfono" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                <input type="text" value={editCandData.location || ''} onChange={e => setEditCandData({ ...editCandData, location: e.target.value })} placeholder="Ubicación" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                <textarea value={editCandData.main_experience || ''} onChange={e => setEditCandData({ ...editCandData, main_experience: e.target.value })} placeholder="Experiencia principal" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', height: '60px' }} />
+              <div>
+                <p><strong>Nombre:</strong> {selectedCandidateForModal.first_name} {selectedCandidateForModal.last_name}</p>
+                <p><strong>Ubicación:</strong> {selectedCandidateForModal.location}</p>
+                <p><strong>Experiencia:</strong> {selectedCandidateForModal.main_experience}</p>
+                {selectedCandidateForModal.cv_url && (
+                  <p><strong>CV:</strong> <a href={selectedCandidateForModal.cv_url} target="_blank" rel="noopener noreferrer" style={{ color: '#8cc63f', fontWeight: 'bold' }}>Ver Archivo PDF</a></p>
+                )}
                 
-                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                  <button onClick={handleSaveCandidateChanges} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar</button>
-                  <button onClick={() => setIsEditingCandidate(false)} style={{ backgroundColor: '#ccc', color: '#222', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button onClick={() => setIsEditingCandidate(true)} style={{ backgroundColor: '#3e4349', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                  {viewMode === 'Admin' && (
+                    <button onClick={() => handleDeleteCandidate(selectedCandidateForModal.id)} style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>Eliminar</button>
+                  )}
                 </div>
               </div>
             )}
@@ -945,44 +840,23 @@ export default function Home() {
 
       {/* MODAL CREAR / EDITAR CLIENTE */}
       {isClientModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '16px' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '12px', width: '100%', maxWidth: '420px', padding: '20px', boxSizing: 'border-box' }}>
-            <h2 style={{ margin: '0 0 14px 0', fontSize: '16px' }}>{editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}</h2>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', width: '100%', maxWidth: '400px' }}>
+            <h3 style={{ marginTop: 0 }}>{editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <input type="text" placeholder="Nombre de la Empresa" value={clientName} onChange={e => setClientName(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-              <input type="email" placeholder="Email del Ejecutivo" value={clientExecEmail} onChange={e => setClientExecEmail(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-              <input type="text" placeholder="Dirección Física" value={clientDireccion} onChange={e => setClientDireccion(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-              <input type="text" placeholder="Zona / Localidad" value={clientZona} onChange={e => setClientZona(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-              <input type="url" placeholder="Enlace de Google Maps (ubicacion_url)" value={clientUbicacionUrl} onChange={e => setClientUbicacionUrl(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                <button onClick={handleSaveClientDetails} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar Cliente</button>
-                <button onClick={() => setIsClientModalOpen(false)} style={{ backgroundColor: '#ccc', color: '#222', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+              <input type="text" placeholder="Nombre del Cliente" value={clientName} onChange={(e) => setClientName(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+              <input type="email" placeholder="Email del Ejecutivo" value={clientExecEmail} onChange={(e) => setClientExecEmail(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+              <input type="text" placeholder="Dirección" value={clientDireccion} onChange={(e) => setClientDireccion(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+              <input type="text" placeholder="Zona/Ubicación" value={clientZona} onChange={(e) => setClientZona(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+              
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                <button onClick={handleSaveClientDetails} style={{ backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar</button>
+                <button onClick={() => setIsClientModalOpen(false)} style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* MODAL EDITAR REQUISITOS */}
-      {isEditReqModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '16px' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '12px', width: '100%', maxWidth: '420px', padding: '20px', boxSizing: 'border-box' }}>
-            <h2 style={{ margin: '0 0 14px 0', fontSize: '16px' }}>Editar Requisitos de Búsqueda</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <input type="text" placeholder="Ubicación requerida" value={reqLocation} onChange={e => setReqLocation(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-              <textarea placeholder="Perfil / Experiencia requerida" value={reqExperience} onChange={e => setReqExperience(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', height: '60px' }} />
-              <input type="text" placeholder="Palabras clave (separadas por comas)" value={reqKeywords} onChange={e => setReqKeywords(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                <button onClick={handleSaveRequirements} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar Requisitos</button>
-                <button onClick={() => setIsEditReqModalOpen(false)} style={{ backgroundColor: '#ccc', color: '#222', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
