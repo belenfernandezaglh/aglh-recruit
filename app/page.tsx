@@ -67,7 +67,7 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState('');
 
   const [viewMode, setViewMode] = useState<'Admin' | 'Reclutador'>('Admin');
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Contraída por defecto
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'CLIENTES' | 'NUEVOS' | 'CONTACTADOS'>('CLIENTES');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -78,6 +78,7 @@ export default function Home() {
   const [auditLogs, setAuditLogs] = useState<CandidateAuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadingCv, setUploadingCv] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('MATCH_DESC');
@@ -134,7 +135,6 @@ export default function Home() {
     try {
       let clientData: any[] = [];
       if (supabase) {
-        // Intenta traer todos los clientes desde la tabla 'clientes' de Supabase
         const res = await supabase.from('clientes').select('*').order('nombre', { ascending: true });
         if (res.data && res.data.length > 0) {
           clientData = res.data.map(c => ({
@@ -147,7 +147,6 @@ export default function Home() {
             requirements: c.requirements
           }));
         } else {
-          // Si no hay datos en 'clientes', consulta la tabla alternativa 'clients'
           const altRes = await supabase.from('clients').select('*').order('name', { ascending: true });
           if (altRes.data) clientData = altRes.data;
         }
@@ -236,6 +235,10 @@ export default function Home() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!authEmail.toLowerCase().endsWith('@aglh.com.uy')) {
+      alert('Solo se permite el ingreso a usuarios con correo @aglh.com.uy');
+      return;
+    }
     if (supabase) {
       const { data, error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
       if (error) {
@@ -398,41 +401,80 @@ export default function Home() {
     setIsEditReqModalOpen(false);
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !selectedCandidateForModal) return;
+  // FUNCION PARA CARGA MULTIPLE DE CVS (PDFs)
+  const handleMultipleCvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
     setUploadingCv(true);
-    try {
-      let finalUrl = '';
-      if (supabase) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `cv_${selectedCandidateForModal.id}_${Date.now()}.${fileExt}`;
-        const { data, error } = await supabase.storage.from('cvs').upload(fileName, file, { upsert: true });
+    const totalFiles = files.length;
+    let uploadedCount = 0;
+    const newCandidatesList: Candidate[] = [];
 
-        if (error) {
-          finalUrl = URL.createObjectURL(file);
-        } else {
-          const { data: publicUrlData } = supabase.storage.from('cvs').getPublicUrl(fileName);
-          finalUrl = publicUrlData.publicUrl;
-        }
-
-        await supabase.from('candidates').update({ cv_url: finalUrl }).eq('id', selectedCandidateForModal.id);
-      } else {
-        finalUrl = URL.createObjectURL(file);
+    for (let i = 0; i < totalFiles; i++) {
+      const file = files[i];
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        continue;
       }
 
-      const updatedCandidate = { ...selectedCandidateForModal, cv_url: finalUrl };
-      setCandidates(candidates.map(c => c.id === updatedCandidate.id ? updatedCandidate : c));
-      setSelectedCandidateForModal(updatedCandidate);
-      await logCandidateAction(updatedCandidate.id, 'CV_SUBIDO', `Subió/Actualizó el archivo de CV (${file.name})`);
-      alert('CV cargado y guardado correctamente.');
-    } catch (err) {
-      console.error('Error al subir archivo:', err);
-      alert('Hubo un problema al subir el archivo.');
-    } finally {
-      setUploadingCv(false);
+      setUploadProgress(`Procesando archivo ${i + 1} de ${totalFiles}: ${file.name}`);
+      let finalUrl = '';
+      const cleanName = file.name.replace('.pdf', '').replace('.PDF', '').replace(/_/g, ' ').replace(/-/g, ' ');
+      const nameParts = cleanName.split(' ');
+      const firstName = nameParts[0] || 'Candidato';
+      const lastName = nameParts.slice(1).join(' ') || 'Nuevo';
+
+      if (supabase) {
+        const fileName = `cv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.pdf`;
+        const { error } = await supabase.storage.from('cvs').upload(fileName, file, { upsert: true });
+
+        if (!error) {
+          const { data: publicUrlData } = supabase.storage.from('cvs').getPublicUrl(fileName);
+          finalUrl = publicUrlData.publicUrl;
+        } else {
+          finalUrl = URL.createObjectURL(file);
+        }
+
+        const newCandObj = {
+          first_name: firstName,
+          last_name: lastName,
+          location: 'Montevideo',
+          main_experience: 'Candidato cargado vía CV PDF',
+          skills: ['pdf', 'cv'],
+          status: 'NUEVO' as CandidateStatus,
+          cv_url: finalUrl
+        };
+
+        const { data: insertedData } = await supabase.from('candidates').insert([newCandObj]).select();
+        if (insertedData && insertedData[0]) {
+          newCandidatesList.push(insertedData[0]);
+          await logCandidateAction(insertedData[0].id, 'CV_SUBIDO', `Cargó CV en PDF: ${file.name}`);
+        }
+      } else {
+        const dummyCand: Candidate = {
+          id: 'cv_' + Date.now() + '_' + i,
+          first_name: firstName,
+          last_name: lastName,
+          location: 'Montevideo',
+          main_experience: 'Candidato cargado vía CV PDF',
+          skills: ['pdf', 'cv'],
+          status: 'NUEVO',
+          created_at: new Date().toISOString(),
+          cv_url: URL.createObjectURL(file)
+        };
+        newCandidatesList.push(dummyCand);
+      }
+      uploadedCount++;
     }
+
+    if (newCandidatesList.length > 0) {
+      setCandidates(prev => [...newCandidatesList, ...prev]);
+    }
+
+    setUploadingCv(false);
+    setUploadProgress('');
+    alert(`Se procesaron correctamente ${uploadedCount} archivo(s) PDF.`);
+    event.target.value = '';
   };
 
   const handleOpenCandidateModal = (candidate: Candidate) => {
@@ -587,7 +629,21 @@ export default function Home() {
               )}
             </div>
           </div>
+
+          {/* BOTON GENERAL DE CARGA MASIVA DE CVS PDF */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ backgroundColor: '#3e4349', color: '#ffffff', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              📤 Subir CVs Masivos (PDF)
+              <input type="file" accept="application/pdf" multiple onChange={handleMultipleCvUpload} style={{ display: 'none' }} />
+            </label>
+          </div>
         </header>
+
+        {uploadingCv && (
+          <div style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '10px 16px', fontSize: '13px', borderBottom: '1px solid #ffeeba', fontWeight: 'bold' }}>
+            ⏳ {uploadProgress || 'Procesando archivos PDF...'}
+          </div>
+        )}
 
         <main style={{ padding: '16px', flex: 1, overflowY: 'auto', boxSizing: 'border-box' }}>
           {loading ? (
@@ -629,7 +685,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* CABECERA DEL CLIENTE ADAPTADA CON BOTÓN GOOGLE MAPS */}
+                  {/* CABECERA DEL CLIENTE */}
                   <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', boxSizing: 'border-box', width: '100%' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       
@@ -654,7 +710,6 @@ export default function Home() {
                             </p>
                           )}
 
-                          {/* BOTÓN GOOGLE MAPS INTEGRADOR */}
                           {activeClient.ubicacion_url && (
                             <div style={{ marginTop: '10px' }}>
                               <a
@@ -669,7 +724,6 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* BOTONES MODO ADMIN */}
                         {viewMode === 'Admin' && (
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                             <button
@@ -708,7 +762,6 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* BUSCADOR Y ORDENAMIENTO */}
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', backgroundColor: '#f5f9ee', padding: '10px', borderRadius: '8px' }}>
                         <input
                           type="text"
@@ -733,7 +786,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* LISTADO DE CANDIDATOS MATCHEADOS */}
+                  {/* LISTADO DE CANDIDATOS */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
                     {getFilteredAndSortedCandidates(activeClient).map((cand) => {
                       const matchPct = calculateMatch(cand, activeClient);
@@ -808,7 +861,13 @@ export default function Home() {
               {/* PESTAÑA DE NUEVOS */}
               {activeTab === 'NUEVOS' && (
                 <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
-                  <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#2c3137' }}>Candidatos Nuevos Sin Asignar</h2>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h2 style={{ margin: 0, fontSize: '18px', color: '#2c3137' }}>Candidatos Nuevos Sin Asignar</h2>
+                    <label style={{ backgroundColor: '#8cc63f', color: '#ffffff', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                      + Cargar varios CV (PDF)
+                      <input type="file" accept="application/pdf" multiple onChange={handleMultipleCvUpload} style={{ display: 'none' }} />
+                    </label>
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
                     {candidates.filter(c => c.status === 'NUEVO').map(cand => (
                       <div key={cand.id} style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '12px' }}>
@@ -857,8 +916,7 @@ export default function Home() {
                   ) : (
                     <p style={{ margin: 0, color: '#888' }}>Sin CV adjunto.</p>
                   )}
-                  <input type="file" accept=".pdf,.doc,.docx" onChange={handleFileUpload} style={{ marginTop: '8px', fontSize: '12px' }} />
-                  {uploadingCv && <p style={{ fontSize: '11px', color: '#666' }}>Subiendo archivo...</p>}
+                  <input type="file" accept="application/pdf" multiple onChange={handleMultipleCvUpload} style={{ marginTop: '8px', fontSize: '12px' }} />
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
