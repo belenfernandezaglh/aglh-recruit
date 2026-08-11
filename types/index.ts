@@ -32,13 +32,14 @@ export interface Candidate {
   matches?: CandidateMatch[];
 }
 
-export interface Client {
-  id: string;
+export interface Cliente {
+  id: number;
   created_at?: string;
-  name: string;
-  executive_email?: string;
-  target_profile?: string;
-  match_threshold?: number;
+  nombre: string;
+  ejecutivo: string;
+  direccion?: string;
+  ubicacion_url?: string;
+  zona?: string;
 }
 
 export interface CandidateMatch {
