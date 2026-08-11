@@ -64,7 +64,7 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState('');
 
   const [viewMode, setViewMode] = useState<'Admin' | 'Reclutador'>('Admin');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Contraída por defecto para ganar espacio
 
   const [activeTab, setActiveTab] = useState<'CLIENTES' | 'NUEVOS' | 'CONTACTADOS'>('CLIENTES');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -304,7 +304,6 @@ export default function Home() {
     await logCandidateAction(candidateId, 'EDITADO', 'Retornado de Contactados a la base activa (NUEVO)');
   };
 
-  // FUNCIONES DE ADMINISTRACIÓN DE CLIENTES (ADMIN)
   const handleSaveClientDetails = async () => {
     if (!clientName.trim()) return alert('El nombre del cliente es obligatorio');
     
@@ -350,7 +349,6 @@ export default function Home() {
     setIsEditReqModalOpen(false);
   };
 
-  // SUBIR CV
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !selectedCandidateForModal) return;
@@ -364,7 +362,6 @@ export default function Home() {
         const { data, error } = await supabase.storage.from('cvs').upload(fileName, file, { upsert: true });
 
         if (error) {
-          console.warn('Bucket de Supabase no disponible, simulando archivo asignado...', error);
           finalUrl = URL.createObjectURL(file);
         } else {
           const { data: publicUrlData } = supabase.storage.from('cvs').getPublicUrl(fileName);
@@ -389,7 +386,6 @@ export default function Home() {
     }
   };
 
-  // FUNCIONES DE GESTIÓN DE CANDIDATOS (EDITAR / ELIMINAR / HISTORIAL)
   const handleOpenCandidateModal = (candidate: Candidate) => {
     setSelectedCandidateForModal(candidate);
     setEditCandData(candidate);
@@ -472,15 +468,15 @@ export default function Home() {
   if (!userSession) {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Arial, sans-serif', backgroundColor: '#e2edd0' }}>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '36px', borderRadius: '8px', width: '360px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '32px 24px', borderRadius: '8px', width: '100%', maxWidth: '360px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
               <span style={{ fontSize: '28px', fontWeight: 'bold', color: '#8cc63f', fontStyle: 'italic' }}>aglh</span>
               <span style={{ backgroundColor: '#8cc63f', color: '#fff', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>ATS Enterprise</span>
             </div>
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <input type="email" placeholder="usuario@aglh.com.uy" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }} />
-              <input type="password" placeholder="Contraseña" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }} />
+              <input type="email" placeholder="usuario@aglh.com.uy" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '4px', width: '100%', boxSizing: 'border-box' }} />
+              <input type="password" placeholder="Contraseña" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '4px', width: '100%', boxSizing: 'border-box' }} />
               <button type="submit" style={{ backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '12px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Iniciar Sesión</button>
             </form>
           </div>
@@ -490,47 +486,50 @@ export default function Home() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif', backgroundColor: '#e2edd0' }}>
-      <aside style={{ width: sidebarOpen ? '240px' : '60px', backgroundColor: '#4a4f56', color: '#ffffff', transition: 'width 0.2s ease', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-        <div style={{ height: '56px', display: 'flex', alignItems: 'center', padding: '0 16px', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: '#3e4349' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', width: '100vw', maxWidth: '100%', overflowX: 'hidden', fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif', backgroundColor: '#e2edd0' }}>
+      
+      {/* BARRA LATERAL */}
+      <aside style={{ width: sidebarOpen ? '220px' : '60px', minWidth: sidebarOpen ? '220px' : '60px', backgroundColor: '#4a4f56', color: '#ffffff', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div style={{ height: '56px', display: 'flex', alignItems: 'center', padding: '0 12px', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: '#3e4349' }}>
           {sidebarOpen && <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#8cc63f', fontStyle: 'italic' }}>aglh</span>}
           <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '20px', cursor: 'pointer' }}>☰</button>
         </div>
 
-        <nav style={{ padding: '16px 8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button onClick={() => setActiveTab('CLIENTES')} style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: activeTab === 'CLIENTES' ? '#8cc63f' : 'transparent', color: '#ffffff', border: 'none', padding: '10px 12px', borderRadius: '18px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
+        <nav style={{ padding: '12px 6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <button onClick={() => setActiveTab('CLIENTES')} title="Panel Clientes" style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: activeTab === 'CLIENTES' ? '#8cc63f' : 'transparent', color: '#ffffff', border: 'none', padding: '10px', borderRadius: '18px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', overflow: 'hidden' }}>
             <span>💼 {sidebarOpen && 'Panel Clientes'}</span>
-            {sidebarOpen && <span style={{ fontSize: '12px' }}>({clients.length})</span>}
+            {sidebarOpen && <span style={{ fontSize: '11px' }}>({clients.length})</span>}
           </button>
 
-          <button onClick={() => setActiveTab('NUEVOS')} style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: activeTab === 'NUEVOS' ? '#8cc63f' : 'transparent', color: '#ffffff', border: 'none', padding: '10px 12px', borderRadius: '18px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
+          <button onClick={() => setActiveTab('NUEVOS')} title="Candidatos Nuevos" style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: activeTab === 'NUEVOS' ? '#8cc63f' : 'transparent', color: '#ffffff', border: 'none', padding: '10px', borderRadius: '18px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', overflow: 'hidden' }}>
             <span>✉ {sidebarOpen && 'Candidatos Nuevos'}</span>
-            {sidebarOpen && <span style={{ fontSize: '12px' }}>({candidates.filter(c => c.status === 'NUEVO').length})</span>}
+            {sidebarOpen && <span style={{ fontSize: '11px' }}>({candidates.filter(c => c.status === 'NUEVO').length})</span>}
           </button>
 
-          <button onClick={() => setActiveTab('CONTACTADOS')} style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: activeTab === 'CONTACTADOS' ? '#8cc63f' : 'transparent', color: '#ffffff', border: 'none', padding: '10px 12px', borderRadius: '18px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
-            <span>👤 {sidebarOpen && 'Módulo Contactados'}</span>
-            {sidebarOpen && <span style={{ fontSize: '12px' }}>({contacts.length})</span>}
+          <button onClick={() => setActiveTab('CONTACTADOS')} title="Módulo Contactados" style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', backgroundColor: activeTab === 'CONTACTADOS' ? '#8cc63f' : 'transparent', color: '#ffffff', border: 'none', padding: '10px', borderRadius: '18px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', overflow: 'hidden' }}>
+            <span>👤 {sidebarOpen && 'Contactados'}</span>
+            {sidebarOpen && <span style={{ fontSize: '11px' }}>({contacts.length})</span>}
           </button>
         </nav>
 
-        <div style={{ marginTop: 'auto', padding: '16px 8px', borderTop: '1px solid #5a5f66' }}>
+        <div style={{ marginTop: 'auto', padding: '12px 6px', borderTop: '1px solid #5a5f66' }}>
           <button onClick={handleLogout} style={{ width: '100%', backgroundColor: 'transparent', color: '#ff6b6b', border: '1px solid #ff6b6b', padding: '6px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>
             {sidebarOpen ? 'Cerrar Sesión' : '➔'}
           </button>
         </div>
       </aside>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <header style={{ backgroundColor: '#8cc63f', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '28px', fontStyle: 'italic' }}>aglh</span>
-            <span style={{ backgroundColor: '#4a4f56', color: '#ffffff', fontSize: '11px', padding: '3px 10px', borderRadius: '12px', fontWeight: 'bold' }}>ATS Enterprise</span>
+      {/* CONTENIDO PRINCIPAL */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <header style={{ backgroundColor: '#8cc63f', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '24px', fontStyle: 'italic' }}>aglh</span>
+            <span style={{ backgroundColor: '#4a4f56', color: '#ffffff', fontSize: '10px', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>ATS Enterprise</span>
 
-            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#3e4349', padding: '4px 10px', borderRadius: '6px', color: '#fff', fontSize: '12px', gap: '6px', marginLeft: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#3e4349', padding: '3px 8px', borderRadius: '6px', color: '#fff', fontSize: '12px', gap: '6px' }}>
               <span style={{ color: '#ccc', fontWeight: 'bold' }}>Modo:</span>
               {isSuperAdminUser ? (
-                <select value={viewMode} onChange={(e) => setViewMode(e.target.value as any)} style={{ backgroundColor: '#ffffff', color: '#222', border: 'none', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
+                <select value={viewMode} onChange={(e) => setViewMode(e.target.value as any)} style={{ backgroundColor: '#ffffff', color: '#222', border: 'none', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
                   <option value="Admin">Admin</option>
                   <option value="Reclutador">Reclutador</option>
                 </select>
@@ -541,140 +540,143 @@ export default function Home() {
           </div>
         </header>
 
-        <main style={{ padding: '24px 32px', flex: 1 }}>
+        <main style={{ padding: '16px', flex: 1, overflowY: 'auto', boxSizing: 'border-box' }}>
           {loading ? (
             <p style={{ textAlign: 'center', color: '#555' }}>Cargando información...</p>
           ) : (
             <>
               {activeTab === 'CLIENTES' && activeClient && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', flex: 1 }}>
-                      {clients.map(c => (
-                        <button
-                          key={c.id}
-                          onClick={() => setSelectedClientId(c.id)}
-                          style={{
-                            backgroundColor: selectedClientId === c.id ? '#4a4f56' : '#ffffff',
-                            color: selectedClientId === c.id ? '#ffffff' : '#333333',
-                            border: 'none',
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            fontWeight: 'bold',
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {c.name}
-                        </button>
-                      ))}
+                <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  
+                  {/* BARRA SUPERIOR DE SELECTOR DE CLIENTES */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '8px', flexWrap: 'wrap' }}>
+                    
+                    {/* Selector desplegable en pantallas ajustadas */}
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <select 
+                        value={selectedClientId || ''} 
+                        onChange={(e) => setSelectedClientId(e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #8cc63f', fontWeight: 'bold', backgroundColor: '#fff', fontSize: '13px' }}
+                      >
+                        {clients.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
                     </div>
 
                     {viewMode === 'Admin' && (
                       <button
                         onClick={() => { setEditingClient(null); setClientName(''); setClientExecEmail(''); setIsClientModalOpen(true); }}
-                        style={{ backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '20px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', marginLeft: '12px', whiteSpace: 'nowrap' }}
+                        style={{ backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '20px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
                       >
                         + Nuevo Cliente
                       </button>
                     )}
                   </div>
 
-                  <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <div>
-                        <h1 style={{ margin: 0, color: '#2c3137', fontSize: '22px' }}>{activeClient.name}</h1>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#666' }}>
-                          Ubicación: <strong>{activeClient.requirements?.location || 'No especificada'}</strong> | Perfil: <strong>{activeClient.requirements?.required_experience || 'No especificado'}</strong> | Ejecutivo: <strong>{activeClient.executive_email || 'Sin asignar'}</strong>
-                        </p>
-                      </div>
-
-                      {viewMode === 'Admin' && (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            onClick={() => { setEditingClient(activeClient); setClientName(activeClient.name); setClientExecEmail(activeClient.executive_email || ''); setIsClientModalOpen(true); }}
-                            style={{ backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                          >
-                            ✏ Editar Cliente
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingClient(activeClient);
-                              setReqLocation(activeClient.requirements?.location || '');
-                              setReqExperience(activeClient.requirements?.required_experience || '');
-                              setReqKeywords((activeClient.requirements?.keywords || []).join(', '));
-                              setIsEditReqModalOpen(true);
-                            }}
-                            style={{ backgroundColor: '#383d42', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                          >
-                            ⚙ Editar Requisitos
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClient(activeClient.id)}
-                            style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                          >
-                            🗑 Eliminar
-                          </button>
+                  {/* CABECERA DEL CLIENTE ADAPTADA */}
+                  <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', boxSizing: 'border-box', width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                        <div>
+                          <h1 style={{ margin: 0, color: '#2c3137', fontSize: '20px' }}>{activeClient.name}</h1>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#666', lineHeight: '1.4' }}>
+                            Ubicación: <strong>{activeClient.requirements?.location || 'No especificada'}</strong> | Perfil: <strong>{activeClient.requirements?.required_experience || 'No especificado'}</strong> | Ejecutivo: <strong>{activeClient.executive_email || 'Sin asignar'}</strong>
+                          </p>
                         </div>
-                      )}
-                    </div>
 
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', backgroundColor: '#f5f9ee', padding: '12px', borderRadius: '8px' }}>
-                      <input
-                        type="text"
-                        placeholder="🔍 Buscador por nombre, localidad o experiencia..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{ flex: 1, minWidth: '240px', padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' }}
-                      />
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
-                        <span style={{ color: '#555', fontWeight: 'bold' }}>Ordenar por:</span>
-                        <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as SortOption)}
-                          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', fontSize: '12px' }}
-                        >
-                          <option value="MATCH_DESC">Mayor compatibilidad</option>
-                          <option value="MATCH_ASC">Menor compatibilidad</option>
-                          <option value="NEWEST">Más reciente</option>
-                          <option value="OLDEST">Más antiguo</option>
-                          <option value="LOCATION">Localidad</option>
-                        </select>
+                        {/* BOTONES MODO ADMIN REORGANIZADOS HACIA LA IZQUIERDA/DENTRO DEL CONTENEDOR */}
+                        {viewMode === 'Admin' && (
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={() => { setEditingClient(activeClient); setClientName(activeClient.name); setClientExecEmail(activeClient.executive_email || ''); setIsClientModalOpen(true); }}
+                              style={{ backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                            >
+                              ✏ Editar Cliente
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingClient(activeClient);
+                                setReqLocation(activeClient.requirements?.location || '');
+                                setReqExperience(activeClient.requirements?.required_experience || '');
+                                setReqKeywords((activeClient.requirements?.keywords || []).join(', '));
+                                setIsEditReqModalOpen(true);
+                              }}
+                              style={{ backgroundColor: '#383d42', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                            >
+                              ⚙ Editar Requisitos
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClient(activeClient.id)}
+                              style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                            >
+                              🗑 Eliminar
+                            </button>
+                          </div>
+                        )}
                       </div>
+
+                      {/* BUSCADOR Y ORDENAMIENTO */}
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', backgroundColor: '#f5f9ee', padding: '10px', borderRadius: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="🔍 Buscar por nombre, localidad o experiencia..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          style={{ flex: 1, minWidth: '180px', padding: '8px 10px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' }}
+                        />
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', flexWrap: 'wrap' }}>
+                          <span style={{ color: '#555', fontWeight: 'bold' }}>Ordenar:</span>
+                          <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as SortOption)}
+                            style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', fontSize: '11px' }}
+                          >
+                            <option value="MATCH_DESC">Mayor compatibilidad</option>
+                            <option value="MATCH_ASC">Menor compatibilidad</option>
+                            <option value="NEWEST">Más reciente</option>
+                            <option value="OLDEST">Más antiguo</option>
+                            <option value="LOCATION">Localidad</option>
+                          </select>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
 
-                  <h2 style={{ fontSize: '16px', color: '#4a4f56', marginBottom: '12px' }}>
+                  <h2 style={{ fontSize: '15px', color: '#4a4f56', marginBottom: '10px' }}>
                     Candidatos Disponibles ({getFilteredAndSortedCandidates(activeClient).length})
                   </h2>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
                     {getFilteredAndSortedCandidates(activeClient).map((cand) => {
                       const matchPercent = calculateMatch(cand, activeClient);
                       return (
-                        <div key={cand.id} style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1.5px solid #d0e3b5', padding: '16px', position: 'relative' }}>
-                          <div style={{ position: 'absolute', top: '14px', right: '14px', backgroundColor: matchPercent >= 80 ? '#28a745' : matchPercent >= 65 ? '#0056b3' : '#ffc107', color: '#ffffff', fontWeight: 'bold', padding: '4px 10px', borderRadius: '12px', fontSize: '13px' }}>
+                        <div key={cand.id} style={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1.5px solid #d0e3b5', padding: '14px', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: matchPercent >= 80 ? '#28a745' : matchPercent >= 65 ? '#0056b3' : '#ffc107', color: '#ffffff', fontWeight: 'bold', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>
                             {matchPercent}% Match
                           </div>
 
-                          <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#2c3137' }}>{cand.first_name || 'Sin nombre'} {cand.last_name || ''}</h3>
-                          <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#666' }}>📍 <strong>Localidad:</strong> {cand.location || 'No informada'}</p>
-                          <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#555', height: '36px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            💼 <strong>Exp:</strong> {cand.main_experience || 'No detallada'}
-                          </p>
+                          <div>
+                            <h3 style={{ margin: '0 0 6px 0', fontSize: '15px', color: '#2c3137', paddingRight: '60px' }}>{cand.first_name || 'Sin nombre'} {cand.last_name || ''}</h3>
+                            <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#666' }}>📍 <strong>Localidad:</strong> {cand.location || 'No informada'}</p>
+                            <p style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#555', height: '32px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              💼 <strong>Exp:</strong> {cand.main_experience || 'No detallada'}
+                            </p>
+                          </div>
 
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
                             <button
                               onClick={() => handleOpenCandidateModal(cand)}
-                              style={{ flex: 1, backgroundColor: '#f0f0f0', color: '#333', border: '1px solid #ccc', padding: '8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                              style={{ flex: 1, backgroundColor: '#f0f0f0', color: '#333', border: '1px solid #ccc', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
                             >
                               Ver Ficha
                             </button>
                             <button
                               onClick={() => handleContactCandidate(cand, activeClient)}
-                              style={{ flex: 1, backgroundColor: '#8cc63f', color: '#ffffff', border: 'none', padding: '8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                              style={{ flex: 1, backgroundColor: '#8cc63f', color: '#ffffff', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
                             >
                               Contactar
                             </button>
@@ -687,17 +689,17 @@ export default function Home() {
               )}
 
               {activeTab === 'NUEVOS' && (
-                <div>
-                  <h1 style={{ color: '#4a4f56', fontSize: '22px', fontWeight: 'bold', marginBottom: '16px' }}>
+                <div style={{ width: '100%' }}>
+                  <h1 style={{ color: '#4a4f56', fontSize: '20px', fontWeight: 'bold', marginBottom: '14px' }}>
                     Base Única de Candidatos Nuevos ({candidates.filter(c => c.status === 'NUEVO').length})
                   </h1>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
                     {candidates.filter(c => c.status === 'NUEVO').map(cand => (
-                      <div key={cand.id} style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '16px', border: '1px solid #ccc' }}>
-                        <h3 style={{ margin: 0, fontSize: '15px' }}>{cand.first_name || 'Sin nombre'} {cand.last_name || ''}</h3>
-                        <p style={{ fontSize: '12px', color: '#666', margin: '4px 0' }}>📍 {cand.location || 'No informada'}</p>
-                        <p style={{ fontSize: '12px', color: '#555', margin: '4px 0 12px 0' }}>💼 {cand.main_experience || 'No detallada'}</p>
-                        <button onClick={() => handleOpenCandidateModal(cand)} style={{ width: '100%', backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '12px' }}>
+                      <div key={cand.id} style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '14px', border: '1px solid #ccc' }}>
+                        <h3 style={{ margin: 0, fontSize: '14px' }}>{cand.first_name || 'Sin nombre'} {cand.last_name || ''}</h3>
+                        <p style={{ fontSize: '11px', color: '#666', margin: '4px 0' }}>📍 {cand.location || 'No informada'}</p>
+                        <p style={{ fontSize: '11px', color: '#555', margin: '4px 0 10px 0' }}>💼 {cand.main_experience || 'No detallada'}</p>
+                        <button onClick={() => handleOpenCandidateModal(cand)} style={{ width: '100%', backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '11px' }}>
                           Ver Ficha Completa
                         </button>
                       </div>
@@ -707,34 +709,34 @@ export default function Home() {
               )}
 
               {activeTab === 'CONTACTADOS' && (
-                <div>
-                  <h1 style={{ color: '#4a4f56', fontSize: '22px', fontWeight: 'bold', margin: '0 0 20px 0' }}>
+                <div style={{ width: '100%' }}>
+                  <h1 style={{ color: '#4a4f56', fontSize: '20px', fontWeight: 'bold', margin: '0 0 16px 0' }}>
                     Módulo Contactados ({contacts.length})
                   </h1>
-                  <div style={{ backgroundColor: '#fff', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ccc' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <div style={{ backgroundColor: '#fff', borderRadius: '8px', overflowX: 'auto', border: '1px solid #ccc', maxWidth: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '500px' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#f1f1f1', borderBottom: '1px solid #ccc', textAlign: 'left' }}>
-                          <th style={{ padding: '12px' }}>Candidato</th>
-                          <th style={{ padding: '12px' }}>Cliente Asignado</th>
-                          <th style={{ padding: '12px' }}>Reclutador que Contactó</th>
-                          <th style={{ padding: '12px' }}>Fecha Contacto</th>
-                          <th style={{ padding: '12px', textAlign: 'center' }}>Acción</th>
+                          <th style={{ padding: '10px' }}>Candidato</th>
+                          <th style={{ padding: '10px' }}>Cliente Asignado</th>
+                          <th style={{ padding: '10px' }}>Reclutador</th>
+                          <th style={{ padding: '10px' }}>Fecha</th>
+                          <th style={{ padding: '10px', textAlign: 'center' }}>Acción</th>
                         </tr>
                       </thead>
                       <tbody>
                         {contacts.map((c) => (
                           <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: '12px', fontWeight: 'bold' }}>{c.candidate?.first_name || ''} {c.candidate?.last_name || ''}</td>
-                            <td style={{ padding: '12px' }}>{c.client?.name || 'CORFRISA'}</td>
-                            <td style={{ padding: '12px' }}>{c.recruiter_email}</td>
-                            <td style={{ padding: '12px' }}>{new Date(c.created_at).toLocaleDateString()}</td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px', fontWeight: 'bold' }}>{c.candidate?.first_name || ''} {c.candidate?.last_name || ''}</td>
+                            <td style={{ padding: '10px' }}>{c.client?.name || 'CORFRISA'}</td>
+                            <td style={{ padding: '10px' }}>{c.recruiter_email}</td>
+                            <td style={{ padding: '10px' }}>{new Date(c.created_at).toLocaleDateString()}</td>
+                            <td style={{ padding: '10px', textAlign: 'center' }}>
                               <button
                                 onClick={() => handleReturnToCandidates(c.id, c.candidate_id)}
-                                style={{ backgroundColor: '#e2edd0', color: '#2c3137', border: '1px solid #8cc63f', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                                style={{ backgroundColor: '#e2edd0', color: '#2c3137', border: '1px solid #8cc63f', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
                               >
-                                ↩ Retornar a Candidatos
+                                ↩ Retornar
                               </button>
                             </td>
                           </tr>
@@ -749,21 +751,21 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL FICHA CANDIDATO CON OPCIONES DE SUBIR/DESCARGAR CV, EDITAR, ELIMINAR E HISTORIAL */}
+      {/* MODAL FICHA CANDIDATO */}
       {isCandidateModalOpen && selectedCandidateForModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '10px', width: '560px', maxHeight: '85vh', overflowY: 'auto' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '12px' }}>
+          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '10px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
             
             {!isEditingCandidate ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h2 style={{ margin: 0, color: '#2c3137' }}>{selectedCandidateForModal.first_name || ''} {selectedCandidateForModal.last_name || ''}</h2>
-                  <button onClick={() => setIsEditingCandidate(true)} style={{ backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h2 style={{ margin: 0, color: '#2c3137', fontSize: '18px' }}>{selectedCandidateForModal.first_name || ''} {selectedCandidateForModal.last_name || ''}</h2>
+                  <button onClick={() => setIsEditingCandidate(true)} style={{ backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
                     ✏ Editar Datos
                   </button>
                 </div>
 
-                <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', color: '#333' }}>
+                <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#333' }}>
                   <p><strong>Email:</strong> {selectedCandidateForModal.email || 'No registrado'}</p>
                   <p><strong>Teléfono:</strong> {selectedCandidateForModal.phone || 'No registrado'}</p>
                   <p><strong>Localidad:</strong> {selectedCandidateForModal.location || 'No informada'}</p>
@@ -772,18 +774,18 @@ export default function Home() {
                 </div>
 
                 {/* SECCIÓN CARGA / DESCARGA CV */}
-                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f5f9ee', borderRadius: '8px', border: '1px solid #d0e3b5' }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#2c3137' }}>📄 Curriculums / Documentos</h4>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ marginTop: '14px', padding: '10px', backgroundColor: '#f5f9ee', borderRadius: '8px', border: '1px solid #d0e3b5' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#2c3137' }}>📄 Curriculums / Documentos</h4>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     {selectedCandidateForModal.cv_url ? (
-                      <a href={selectedCandidateForModal.cv_url} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: '#0056b3', color: '#fff', padding: '6px 12px', borderRadius: '4px', textDecoration: 'none', fontWeight: 'bold', fontSize: '12px' }}>
+                      <a href={selectedCandidateForModal.cv_url} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: '#0056b3', color: '#fff', padding: '5px 10px', borderRadius: '4px', textDecoration: 'none', fontWeight: 'bold', fontSize: '11px' }}>
                         ⬇ Descargar CV Guardado
                       </a>
                     ) : (
-                      <span style={{ fontSize: '12px', color: '#888' }}>No hay CV cargado aún</span>
+                      <span style={{ fontSize: '11px', color: '#888' }}>No hay CV cargado aún</span>
                     )}
 
-                    <label style={{ backgroundColor: '#8cc63f', color: '#fff', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                    <label style={{ backgroundColor: '#8cc63f', color: '#fff', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
                       {uploadingCv ? 'Subiendo...' : '📤 Cargar / Reemplazar CV'}
                       <input type="file" accept=".pdf,.doc,.docx" onChange={handleFileUpload} style={{ display: 'none' }} disabled={uploadingCv} />
                     </label>
@@ -791,12 +793,12 @@ export default function Home() {
                 </div>
 
                 {/* HISTORIAL DE MODIFICACIONES */}
-                <div style={{ marginTop: '16px', borderTop: '1px solid #eee', paddingTop: '12px' }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#555' }}>📜 Historial de Cambios</h4>
-                  <div style={{ maxHeight: '100px', overflowY: 'auto', backgroundColor: '#fafafa', padding: '8px', borderRadius: '6px', fontSize: '11px', border: '1px solid #eaeaea' }}>
+                <div style={{ marginTop: '14px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#555' }}>📜 Historial de Cambios</h4>
+                  <div style={{ maxHeight: '90px', overflowY: 'auto', backgroundColor: '#fafafa', padding: '6px', borderRadius: '6px', fontSize: '10px', border: '1px solid #eaeaea' }}>
                     {auditLogs.filter(log => log.candidate_id === selectedCandidateForModal.id).length > 0 ? (
                       auditLogs.filter(log => log.candidate_id === selectedCandidateForModal.id).map(log => (
-                        <div key={log.id} style={{ marginBottom: '6px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                        <div key={log.id} style={{ marginBottom: '4px', borderBottom: '1px solid #eee', paddingBottom: '2px' }}>
                           <strong>{new Date(log.created_at).toLocaleString()}</strong> - <em>{log.user_email}</em>: {log.details}
                         </div>
                       ))
@@ -806,46 +808,46 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
-                  <button onClick={() => handleDeleteCandidate(selectedCandidateForModal.id)} style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid #eee', paddingTop: '12px' }}>
+                  <button onClick={() => handleDeleteCandidate(selectedCandidateForModal.id)} style={{ backgroundColor: '#ff6b6b', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>
                     🗑 Eliminar Candidato
                   </button>
 
-                  <button onClick={() => setIsCandidateModalOpen(false)} style={{ marginLeft: 'auto', backgroundColor: '#e0e0e0', color: '#333', border: 'none', padding: '10px 18px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  <button onClick={() => setIsCandidateModalOpen(false)} style={{ marginLeft: 'auto', backgroundColor: '#e0e0e0', color: '#333', border: 'none', padding: '8px 14px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
                     Cerrar
                   </button>
                 </div>
               </>
             ) : (
               <div>
-                <h3 style={{ margin: '0 0 16px 0', color: '#2c3137' }}>Editar Candidato</h3>
+                <h3 style={{ margin: '0 0 12px 0', color: '#2c3137', fontSize: '16px' }}>Editar Candidato</h3>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
                   <label><strong>Nombre:</strong></label>
-                  <input type="text" value={editCandData.first_name || ''} onChange={(e) => setEditCandData({ ...editCandData, first_name: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <input type="text" value={editCandData.first_name || ''} onChange={(e) => setEditCandData({ ...editCandData, first_name: e.target.value })} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
 
                   <label><strong>Apellido:</strong></label>
-                  <input type="text" value={editCandData.last_name || ''} onChange={(e) => setEditCandData({ ...editCandData, last_name: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <input type="text" value={editCandData.last_name || ''} onChange={(e) => setEditCandData({ ...editCandData, last_name: e.target.value })} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
 
                   <label><strong>Email:</strong></label>
-                  <input type="email" value={editCandData.email || ''} onChange={(e) => setEditCandData({ ...editCandData, email: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <input type="email" value={editCandData.email || ''} onChange={(e) => setEditCandData({ ...editCandData, email: e.target.value })} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
 
                   <label><strong>Teléfono:</strong></label>
-                  <input type="text" value={editCandData.phone || ''} onChange={(e) => setEditCandData({ ...editCandData, phone: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <input type="text" value={editCandData.phone || ''} onChange={(e) => setEditCandData({ ...editCandData, phone: e.target.value })} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
 
                   <label><strong>Localidad:</strong></label>
-                  <input type="text" value={editCandData.location || ''} onChange={(e) => setEditCandData({ ...editCandData, location: e.target.value })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <input type="text" value={editCandData.location || ''} onChange={(e) => setEditCandData({ ...editCandData, location: e.target.value })} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
 
                   <label><strong>Experiencia Principal:</strong></label>
-                  <textarea value={editCandData.main_experience || ''} onChange={(e) => setEditCandData({ ...editCandData, main_experience: e.target.value })} rows={3} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <textarea value={editCandData.main_experience || ''} onChange={(e) => setEditCandData({ ...editCandData, main_experience: e.target.value })} rows={2} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
 
                   <label><strong>Habilidades (separadas por coma):</strong></label>
-                  <input type="text" value={Array.isArray(editCandData.skills) ? editCandData.skills.join(', ') : editCandData.skills || ''} onChange={(e) => setEditCandData({ ...editCandData, skills: e.target.value as any })} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <input type="text" value={Array.isArray(editCandData.skills) ? editCandData.skills.join(', ') : editCandData.skills || ''} onChange={(e) => setEditCandData({ ...editCandData, skills: e.target.value as any })} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                  <button onClick={handleSaveCandidateChanges} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '10px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar Cambios</button>
-                  <button onClick={() => setIsEditingCandidate(false)} style={{ flex: 1, backgroundColor: '#ccc', border: 'none', padding: '10px', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                  <button onClick={handleSaveCandidateChanges} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Guardar Cambios</button>
+                  <button onClick={() => setIsEditingCandidate(false)} style={{ flex: 1, backgroundColor: '#ccc', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Cancelar</button>
                 </div>
               </div>
             )}
@@ -856,16 +858,16 @@ export default function Home() {
 
       {/* MODAL CREAR / EDITAR CLIENTE (ADMIN) */}
       {isClientModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '10px', width: '400px' }}>
-            <h3 style={{ margin: '0 0 16px 0' }}>{editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
-            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Nombre de la Empresa:</label>
-            <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '12px', border: '1px solid #ccc', borderRadius: '4px' }} />
-            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Email del Ejecutivo:</label>
-            <input type="email" value={clientExecEmail} onChange={(e) => setClientExecEmail(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '16px', border: '1px solid #ccc', borderRadius: '4px' }} />
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '12px' }}>
+          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '10px', width: '100%', maxWidth: '380px' }}>
+            <h3 style={{ margin: '0 0 14px 0', fontSize: '16px' }}>{editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
+            <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Nombre de la Empresa:</label>
+            <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} style={{ width: '100%', padding: '6px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} />
+            <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Email del Ejecutivo:</label>
+            <input type="email" value={clientExecEmail} onChange={(e) => setClientExecEmail(e.target.value)} style={{ width: '100%', padding: '6px', marginBottom: '14px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} />
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={handleSaveClientDetails} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '10px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar</button>
-              <button onClick={() => setIsClientModalOpen(false)} style={{ flex: 1, backgroundColor: '#ccc', border: 'none', padding: '10px', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleSaveClientDetails} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Guardar</button>
+              <button onClick={() => setIsClientModalOpen(false)} style={{ flex: 1, backgroundColor: '#ccc', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Cancelar</button>
             </div>
           </div>
         </div>
@@ -873,18 +875,18 @@ export default function Home() {
 
       {/* MODAL EDITAR REQUISITOS (ADMIN) */}
       {isEditReqModalOpen && editingClient && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '10px', width: '400px' }}>
-            <h3 style={{ margin: '0 0 16px 0' }}>Editar Requisitos: {editingClient.name}</h3>
-            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Localidad:</label>
-            <input type="text" value={reqLocation} onChange={(e) => setReqLocation(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '12px', border: '1px solid #ccc', borderRadius: '4px' }} />
-            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Experiencia / Perfil:</label>
-            <input type="text" value={reqExperience} onChange={(e) => setReqExperience(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '12px', border: '1px solid #ccc', borderRadius: '4px' }} />
-            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Palabras Clave (separadas por coma):</label>
-            <input type="text" value={reqKeywords} onChange={(e) => setReqKeywords(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '16px', border: '1px solid #ccc', borderRadius: '4px' }} />
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '12px' }}>
+          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '10px', width: '100%', maxWidth: '380px' }}>
+            <h3 style={{ margin: '0 0 14px 0', fontSize: '16px' }}>Editar Requisitos: {editingClient.name}</h3>
+            <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Localidad:</label>
+            <input type="text" value={reqLocation} onChange={(e) => setReqLocation(e.target.value)} style={{ width: '100%', padding: '6px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} />
+            <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Experiencia / Perfil:</label>
+            <input type="text" value={reqExperience} onChange={(e) => setReqExperience(e.target.value)} style={{ width: '100%', padding: '6px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} />
+            <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Palabras Clave (separadas por coma):</label>
+            <input type="text" value={reqKeywords} onChange={(e) => setReqKeywords(e.target.value)} style={{ width: '100%', padding: '6px', marginBottom: '14px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} />
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={handleSaveRequirements} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '10px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar</button>
-              <button onClick={() => setIsEditReqModalOpen(false)} style={{ flex: 1, backgroundColor: '#ccc', border: 'none', padding: '10px', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleSaveRequirements} style={{ flex: 1, backgroundColor: '#8cc63f', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Guardar</button>
+              <button onClick={() => setIsEditReqModalOpen(false)} style={{ flex: 1, backgroundColor: '#ccc', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Cancelar</button>
             </div>
           </div>
         </div>
