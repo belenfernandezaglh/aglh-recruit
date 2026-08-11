@@ -125,11 +125,11 @@ export default function Home() {
           keywords: ['deposito', 'picking', 'carga']
         };
 
-        if (c.name.toUpperCase().includes('CORFRISA')) {
+        if (c.name?.toUpperCase().includes('CORFRISA')) {
           reqs = { location: 'Montevideo / Las Piedras', required_experience: 'Auxiliar de Depósito, picking con colector', keywords: ['colector', 'picking', 'fuerza', 'paletera'] };
-        } else if (c.name.toUpperCase().includes('KEVENOLL')) {
+        } else if (c.name?.toUpperCase().includes('KEVENOLL')) {
           reqs = { location: 'Montevideo', required_experience: 'Peón de depósito, esfuerzo físico', keywords: ['peon', 'deposito', 'fuerza', 'carga'] };
-        } else if (c.name.toUpperCase().includes('RIOGAS') || c.name.toUpperCase().includes('ACODIKE')) {
+        } else if (c.name?.toUpperCase().includes('RIOGAS') || c.name?.toUpperCase().includes('ACODIKE')) {
           reqs = { location: 'Camino Lecocq, Montevideo', required_experience: 'Operario de Ingreso, planta, carga pesada', keywords: ['planta', 'carga', 'pesada', 'fuerza'] };
         }
 
@@ -196,31 +196,42 @@ export default function Home() {
     setUserSession(null);
   };
 
+  // FUNCIÓN PROTEGIDA CONTRA NULL/UNDEFINED
   const calculateMatch = (candidate: Candidate, client?: Client): number => {
     if (!client || !client.requirements) return 70;
     let score = 0;
     const req = client.requirements;
 
-    if (candidate.location.toLowerCase().includes(req.location.toLowerCase()) || req.location.toLowerCase().includes(candidate.location.toLowerCase())) {
+    const candLocation = (candidate?.location || '').toLowerCase();
+    const reqLocationStr = (req?.location || '').toLowerCase();
+
+    if (candLocation && reqLocationStr && (candLocation.includes(reqLocationStr) || reqLocationStr.includes(candLocation))) {
       score += 30;
     } else {
       score += 15;
     }
 
-    const expText = candidate.main_experience.toLowerCase();
-    const reqExpText = req.required_experience.toLowerCase();
-    if (expText.includes(reqExpText) || reqExpText.includes(expText)) {
+    const expText = (candidate?.main_experience || '').toLowerCase();
+    const reqExpText = (req?.required_experience || '').toLowerCase();
+
+    if (expText && reqExpText && (expText.includes(reqExpText) || reqExpText.includes(expText))) {
       score += 40;
     } else {
       score += 20;
     }
 
     let kwMatch = 0;
-    if (req.keywords && req.keywords.length > 0) {
-      req.keywords.forEach(kw => {
-        if (candidate.skills?.includes(kw.toLowerCase()) || expText.includes(kw.toLowerCase())) kwMatch++;
+    const reqKeywordsList = req?.keywords || [];
+    const candSkills = candidate?.skills || [];
+
+    if (reqKeywordsList.length > 0) {
+      reqKeywordsList.forEach(kw => {
+        const kwLower = (kw || '').toLowerCase();
+        if (kwLower && (candSkills.some(s => (s || '').toLowerCase().includes(kwLower)) || expText.includes(kwLower))) {
+          kwMatch++;
+        }
       });
-      score += Math.min(30, Math.round((kwMatch / req.keywords.length) * 30));
+      score += Math.min(30, Math.round((kwMatch / reqKeywordsList.length) * 30));
     } else {
       score += 20;
     }
@@ -236,7 +247,7 @@ export default function Home() {
     }
     setCandidates(candidates.map(c => c.id === candidate.id ? { ...c, status: 'CONTACTADO' } : c));
     setContacts([{ id: Date.now().toString(), candidate_id: candidate.id, client_id: client.id, recruiter_email: recruiterEmail, created_at: new Date().toISOString(), candidate, client }, ...contacts]);
-    alert(`Candidato ${candidate.first_name} ${candidate.last_name} movido a CONTACTADOS.`);
+    alert(`Candidato ${candidate.first_name || ''} ${candidate.last_name || ''} movido a CONTACTADOS.`);
   };
 
   const handleReturnToCandidates = async (contactRecordId: string, candidateId: string) => {
@@ -265,16 +276,21 @@ export default function Home() {
     let result = candidates.filter(c => c.status === 'NUEVO');
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(c => c.first_name.toLowerCase().includes(term) || c.last_name.toLowerCase().includes(term) || c.location.toLowerCase().includes(term) || c.main_experience.toLowerCase().includes(term));
+      result = result.filter(c => 
+        (c.first_name || '').toLowerCase().includes(term) || 
+        (c.last_name || '').toLowerCase().includes(term) || 
+        (c.location || '').toLowerCase().includes(term) || 
+        (c.main_experience || '').toLowerCase().includes(term)
+      );
     }
     return result.sort((a, b) => {
       const matchA = calculateMatch(a, currentClient);
       const matchB = calculateMatch(b, currentClient);
       if (sortBy === 'MATCH_DESC') return matchB - matchA;
       if (sortBy === 'MATCH_ASC') return matchA - matchB;
-      if (sortBy === 'NEWEST') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      if (sortBy === 'OLDEST') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      if (sortBy === 'LOCATION') return a.location.localeCompare(b.location);
+      if (sortBy === 'NEWEST') return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      if (sortBy === 'OLDEST') return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+      if (sortBy === 'LOCATION') return (a.location || '').localeCompare(b.location || '');
       return 0;
     });
   };
@@ -390,7 +406,7 @@ export default function Home() {
                       <div>
                         <h1 style={{ margin: 0, color: '#2c3137', fontSize: '22px' }}>{activeClient.name}</h1>
                         <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#666' }}>
-                          Ubicación: <strong>{activeClient.requirements?.location}</strong> | Perfil: <strong>{activeClient.requirements?.required_experience}</strong>
+                          Ubicación: <strong>{activeClient.requirements?.location || 'No especificada'}</strong> | Perfil: <strong>{activeClient.requirements?.required_experience || 'No especificado'}</strong>
                         </p>
                       </div>
 
@@ -449,10 +465,10 @@ export default function Home() {
                             {matchPercent}% Match
                           </div>
 
-                          <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#2c3137' }}>{cand.first_name} {cand.last_name}</h3>
-                          <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#666' }}>📍 <strong>Localidad:</strong> {cand.location}</p>
+                          <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#2c3137' }}>{cand.first_name || 'Sin nombre'} {cand.last_name || ''}</h3>
+                          <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#666' }}>📍 <strong>Localidad:</strong> {cand.location || 'No informada'}</p>
                           <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#555', height: '36px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            💼 <strong>Exp:</strong> {cand.main_experience}
+                            💼 <strong>Exp:</strong> {cand.main_experience || 'No detallada'}
                           </p>
 
                           <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
@@ -484,9 +500,9 @@ export default function Home() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
                     {candidates.filter(c => c.status === 'NUEVO').map(cand => (
                       <div key={cand.id} style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '16px', border: '1px solid #ccc' }}>
-                        <h3 style={{ margin: 0, fontSize: '15px' }}>{cand.first_name} {cand.last_name}</h3>
-                        <p style={{ fontSize: '12px', color: '#666', margin: '4px 0' }}>📍 {cand.location}</p>
-                        <p style={{ fontSize: '12px', color: '#555', margin: '4px 0 12px 0' }}>💼 {cand.main_experience}</p>
+                        <h3 style={{ margin: 0, fontSize: '15px' }}>{cand.first_name || 'Sin nombre'} {cand.last_name || ''}</h3>
+                        <p style={{ fontSize: '12px', color: '#666', margin: '4px 0' }}>📍 {cand.location || 'No informada'}</p>
+                        <p style={{ fontSize: '12px', color: '#555', margin: '4px 0 12px 0' }}>💼 {cand.main_experience || 'No detallada'}</p>
                         <button onClick={() => { setSelectedCandidateForModal(cand); setIsCandidateModalOpen(true); }} style={{ width: '100%', backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '6px', borderRadius: '4px', fontSize: '12px' }}>
                           Ver Ficha Completa
                         </button>
@@ -515,7 +531,7 @@ export default function Home() {
                       <tbody>
                         {contacts.map((c) => (
                           <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: '12px', fontWeight: 'bold' }}>{c.candidate?.first_name} {c.candidate?.last_name}</td>
+                            <td style={{ padding: '12px', fontWeight: 'bold' }}>{c.candidate?.first_name || ''} {c.candidate?.last_name || ''}</td>
                             <td style={{ padding: '12px' }}>{c.client?.name || 'CORFRISA'}</td>
                             <td style={{ padding: '12px' }}>{c.recruiter_email}</td>
                             <td style={{ padding: '12px' }}>{new Date(c.created_at).toLocaleDateString()}</td>
@@ -542,11 +558,11 @@ export default function Home() {
       {isCandidateModalOpen && selectedCandidateForModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '10px', width: '450px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <h2 style={{ margin: '0 0 12px 0', color: '#2c3137' }}>{selectedCandidateForModal.first_name} {selectedCandidateForModal.last_name}</h2>
+            <h2 style={{ margin: '0 0 12px 0', color: '#2c3137' }}>{selectedCandidateForModal.first_name || 'Sin nombre'} {selectedCandidateForModal.last_name || ''}</h2>
             <p><strong>Email:</strong> {selectedCandidateForModal.email || 'No registrado'}</p>
             <p><strong>Teléfono:</strong> {selectedCandidateForModal.phone || 'No registrado'}</p>
-            <p><strong>Localidad:</strong> {selectedCandidateForModal.location}</p>
-            <p><strong>Experiencia:</strong> {selectedCandidateForModal.main_experience}</p>
+            <p><strong>Localidad:</strong> {selectedCandidateForModal.location || 'No informada'}</p>
+            <p><strong>Experiencia:</strong> {selectedCandidateForModal.main_experience || 'No detallada'}</p>
             <p><strong>Habilidades:</strong> {(selectedCandidateForModal.skills || []).join(', ')}</p>
             <button onClick={() => setIsCandidateModalOpen(false)} style={{ marginTop: '16px', width: '100%', backgroundColor: '#4a4f56', color: '#fff', border: 'none', padding: '10px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
               Cerrar
