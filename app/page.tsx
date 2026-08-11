@@ -46,13 +46,13 @@ interface ContactRecord {
 }
 
 export default function Home() {
-  // Autenticación y usuario
+  // Autenticación
   const [userSession, setUserSession] = useState<any>(null);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
 
-  // Control de vista: 'ADMIN' o 'NORMAL' (Soporta usuario Anahit)
-  const [viewMode, setViewMode] = useState<'ADMIN' | 'NORMAL'>('ADMIN');
+  // Control de vista: 'Admin' o 'Reclutador'
+  const [viewMode, setViewMode] = useState<'Admin' | 'Reclutador'>('Admin');
 
   // Estado del menú hamburguesa
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -73,17 +73,21 @@ export default function Home() {
 
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [selectedClientId, setSelectedClientId] = useState('');
-  const [contactNotes, setContactNotes] = useState('');
 
   useEffect(() => {
     checkSession();
   }, []);
 
+  // Verificar sesión y validar si el usuario es Anahit o Belén
   const checkSession = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     setUserSession(session);
     if (session) {
+      const email = session.user?.email?.toLowerCase() || '';
+      const isAllowedAdmin = email.includes('anahit') || email.includes('belen');
+      if (!isAllowedAdmin) {
+        setViewMode('Reclutador'); // Fuerza rol Reclutador a otros usuarios
+      }
       await loadAllData();
     }
     setLoading(false);
@@ -99,7 +103,6 @@ export default function Home() {
       .order('name', { ascending: true });
 
     if (clientData) {
-      // Simulación de métricas visuales idénticas a la imagen si no vienen de BD
       const formattedClients = clientData.map((c: any) => ({
         ...c,
         executive_name: c.executive_email ? c.executive_email.split('@')[0] : 'Pablo',
@@ -137,6 +140,9 @@ export default function Home() {
       alert('Error de acceso: ' + error.message);
     } else {
       setUserSession(data.session);
+      const email = data.session.user?.email?.toLowerCase() || '';
+      const isAllowedAdmin = email.includes('anahit') || email.includes('belen');
+      setViewMode(isAllowedAdmin ? 'Admin' : 'Reclutador');
       await loadAllData();
     }
   };
@@ -146,7 +152,7 @@ export default function Home() {
     setUserSession(null);
   };
 
-  // Reasignación directa de ejecutivo en tarjeta de cliente
+  // Reasignación directa de ejecutivo en tarjeta
   const handleUpdateExecutive = async (clientId: string, newExec: string) => {
     const { error } = await supabase
       .from('clients')
@@ -189,10 +195,12 @@ export default function Home() {
     }
   };
 
-  // Ingesta Masiva / Carga de CVs
   const handleBatchImport = () => {
     alert('Ingesta masiva activada: Selecciona los archivos de CV para procesar.');
   };
+
+  const currentUserEmail = userSession?.user?.email?.toLowerCase() || '';
+  const isSuperAdminUser = currentUserEmail.includes('anahit') || currentUserEmail.includes('belen');
 
   // --- FORMULARIO DE LOGIN ---
   if (!userSession) {
@@ -251,7 +259,6 @@ export default function Home() {
               <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#8cc63f', fontStyle: 'italic' }}>aglh</span>
             </div>
           )}
-          {/* BOTÓN MENÚ HAMBURGUESA */}
           <button 
             onClick={() => setSidebarOpen(!sidebarOpen)}
             style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '20px', cursor: 'pointer', outline: 'none' }}
@@ -263,7 +270,6 @@ export default function Home() {
 
         {/* Opciones de Menú */}
         <nav style={{ padding: '16px 8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Pestaña Clientes */}
           <button
             onClick={() => setActiveTab('CLIENTES')}
             style={{
@@ -285,7 +291,6 @@ export default function Home() {
             {sidebarOpen && <span style={{ fontSize: '12px' }}>({clients.length})</span>}
           </button>
 
-          {/* Pestaña Nuevos */}
           <button
             onClick={() => setActiveTab('NUEVOS')}
             style={{
@@ -307,7 +312,6 @@ export default function Home() {
             {sidebarOpen && <span style={{ fontSize: '12px' }}>({candidates.filter(c => c.status === 'NUEVO').length})</span>}
           </button>
 
-          {/* Pestaña Contactados */}
           <button
             onClick={() => setActiveTab('CONTACTADOS')}
             style={{
@@ -330,21 +334,8 @@ export default function Home() {
           </button>
         </nav>
 
-        {/* Footer Sidebar / Switcher de Rol */}
+        {/* Footer Sidebar */}
         <div style={{ marginTop: 'auto', padding: '16px 8px', borderTop: '1px solid #5a5f66' }}>
-          {sidebarOpen && (
-            <div style={{ marginBottom: '12px', fontSize: '11px', color: '#ccc' }}>
-              Modo: 
-              <select 
-                value={viewMode} 
-                onChange={(e) => setViewMode(e.target.value as any)}
-                style={{ marginLeft: '6px', backgroundColor: '#3e4349', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '3px' }}
-              >
-                <option value="ADMIN">Admin (Anahit/Full)</option>
-                <option value="NORMAL">Normal (Reclutador)</option>
-              </select>
-            </div>
-          )}
           <button
             onClick={handleLogout}
             style={{
@@ -366,13 +357,30 @@ export default function Home() {
       {/* ÁREA PRINCIPAL */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         
-        {/* BANNER SUPERIOR (VERDE LIMA CORPORATIVO) */}
+        {/* BANNER SUPERIOR CON SELECTOR DE ROL DESTACADO */}
         <header style={{ backgroundColor: '#8cc63f', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '28px', fontStyle: 'italic', letterSpacing: '-0.5px' }}>aglh</span>
             <span style={{ backgroundColor: '#4a4f56', color: '#ffffff', fontSize: '11px', padding: '3px 10px', borderRadius: '12px', fontWeight: 'bold' }}>
               ATS Enterprise
             </span>
+
+            {/* SELECTOR DE MODO DESTACADO EN LA BARRA SUPERIOR */}
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#3e4349', padding: '4px 10px', borderRadius: '6px', color: '#fff', fontSize: '12px', gap: '6px', marginLeft: '10px' }}>
+              <span style={{ color: '#ccc', fontWeight: 'bold' }}>Modo:</span>
+              {isSuperAdminUser ? (
+                <select 
+                  value={viewMode} 
+                  onChange={(e) => setViewMode(e.target.value as any)}
+                  style={{ backgroundColor: '#ffffff', color: '#222', border: 'none', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="Reclutador">Reclutador</option>
+                </select>
+              ) : (
+                <span style={{ fontWeight: 'bold', color: '#8cc63f' }}>Reclutador</span>
+              )}
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -394,7 +402,7 @@ export default function Home() {
               + Importar CVs Masivo
             </button>
 
-            {/* BOTÓN + CREAR NUEVO CLIENTE (Habilitado siempre en vista Clientes) */}
+            {/* BOTÓN + CREAR NUEVO CLIENTE (Visible solo si es Admin o en vista Clientes) */}
             {activeTab === 'CLIENTES' && (
               <button
                 onClick={() => setIsNewClientModalOpen(true)}
@@ -422,14 +430,13 @@ export default function Home() {
             <p style={{ textAlign: 'center', color: '#555', marginTop: '40px' }}>Cargando información del sistema...</p>
           ) : (
             <>
-              {/* VISTA 1: GESTIÓN DE CLIENTES (Diseño exacto de la foto) */}
+              {/* VISTA 1: GESTIÓN DE CLIENTES */}
               {activeTab === 'CLIENTES' && (
                 <div>
                   <h1 style={{ color: '#4a4f56', fontSize: '22px', fontWeight: 'bold', margin: '0 0 20px 0' }}>
                     Gestión de Clientes ({clients.length})
                   </h1>
 
-                  {/* GRID DE TARJETAS DE CLIENTES */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '18px' }}>
                     {clients.map((client) => (
                       <div 
@@ -442,32 +449,34 @@ export default function Home() {
                           boxShadow: '0 2px 5px rgba(0,0,0,0.03)' 
                         }}
                       >
-                        {/* Cabecera de la Tarjeta */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                           <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#2c3137' }}>
                             {client.name}
                           </h3>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#555' }}>
                             <span>Resp:</span>
-                            <input
-                              type="text"
-                              defaultValue={client.executive_name || 'Pablo'}
-                              onBlur={(e) => handleUpdateExecutive(client.id, e.target.value)}
-                              style={{
-                                width: '70px',
-                                border: 'none',
-                                background: 'transparent',
-                                borderBottom: '1px dashed #777',
-                                fontSize: '12px',
-                                fontWeight: 'bold',
-                                color: '#333'
-                              }}
-                              title="Haz clic para reasignar el ejecutivo directo"
-                            />
+                            {viewMode === 'Admin' ? (
+                              <input
+                                type="text"
+                                defaultValue={client.executive_name || 'Pablo'}
+                                onBlur={(e) => handleUpdateExecutive(client.id, e.target.value)}
+                                style={{
+                                  width: '70px',
+                                  border: 'none',
+                                  background: 'transparent',
+                                  borderBottom: '1px dashed #777',
+                                  fontSize: '12px',
+                                  fontWeight: 'bold',
+                                  color: '#333'
+                                }}
+                                title="Haz clic para reasignar directo"
+                              />
+                            ) : (
+                              <span style={{ fontWeight: 'bold', color: '#333' }}>{client.executive_name || 'Pablo'}</span>
+                            )}
                           </div>
                         </div>
 
-                        {/* Muestras / Métricas en 3 columnas */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', textAlign: 'center', alignItems: 'center' }}>
                           <div>
                             <div style={{ fontSize: '10px', color: '#777', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL</div>
@@ -500,7 +509,9 @@ export default function Home() {
                       <div key={candidate.id} style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #ccc' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <h3 style={{ margin: 0, fontSize: '15px' }}>{candidate.first_name} {candidate.last_name}</h3>
-                          <button onClick={() => handleDeleteCandidate(candidate.id)} style={{ background: 'none', border: 'none', color: '#d9534f', cursor: 'pointer' }}>🗑</button>
+                          {viewMode === 'Admin' && (
+                            <button onClick={() => handleDeleteCandidate(candidate.id)} style={{ background: 'none', border: 'none', color: '#d9534f', cursor: 'pointer' }}>🗑</button>
+                          )}
                         </div>
                         <p style={{ margin: '6px 0', fontSize: '12px', color: '#666' }}>✉ {candidate.email}</p>
                         <p style={{ margin: '6px 0 14px 0', fontSize: '12px', color: '#666' }}>📞 {candidate.phone}</p>
